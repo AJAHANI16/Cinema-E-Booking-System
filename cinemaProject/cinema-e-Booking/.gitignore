@@ -1,24 +1,103 @@
+# Node modules
+node_modules/
+.pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.vercel/
+.nuxt/
+.tmp/
+
+# TypeScript
+*.tsbuildinfo
+*.tscache
+
+# Tailwind
+# (Tailwind itself doesn't generate permanent files, but caches may be present)
+.tailwindcss/
+.tailwind-cache/
+
 # Logs
-logs
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+*.log
 
-node_modules
-dist
-dist-ssr
-*.local
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# Coverage
+coverage/
+*.lcov
+
+# Environment files
+.env
+.env.*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE/editor folders
+.vscode/
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+.next/
+out/
+vite.config.ts.timestamp*
+vite.config.js.timestamp*
+.vite/
+
+# Storybook
+storybook-static/
+.out/
+
+# Testing
+jest-test-results.json
+test-report.xml
+cypress/screenshots/
+cypress/videos/
+playwright-report/
+test-results/
+
+# Misc
+*.tgz
+*.zip
+*.tar
+*.tar.gz
+
+# Yarn / NPM / PNPM
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+.yarn-integrity
+
+# Lock files (optional, depending on workflow)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
