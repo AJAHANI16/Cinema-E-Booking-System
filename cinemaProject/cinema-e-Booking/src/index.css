@@ -1,1 +1,28 @@
+/* 
+ * Cinema E-Booking System - Main Stylesheet
+ * 
+ * This file imports TailwindCSS and defines custom utility classes
+ * that extend Tailwind's functionality for our specific needs.
+ */
+
+/* Import TailwindCSS framework for utility-first styling */
 @import 'tailwindcss';
+
+/* 
+ * Custom Utility Classes
+ * These extend TailwindCSS with additional functionality
+ */
+
+/* Text truncation utility - limits text to 3 lines with ellipsis */
+.line-clamp-3 {
+  display: -webkit-box;           /* Use flexbox layout */
+  -webkit-line-clamp: 3;          /* Limit to 3 lines */
+  line-clamp: 3;                  /* Standard property for future browsers */
+  -webkit-box-orient: vertical;   /* Set flex direction to vertical */
+  overflow: hidden;               /* Hide overflow text */
+}
+
+/* 
+ * Additional custom styles can be added here as needed
+ * Examples: custom animations, component-specific styles, etc.
+ */

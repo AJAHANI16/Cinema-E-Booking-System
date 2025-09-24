@@ -1,5 +1,10 @@
-# Node modules
+# Dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 .pnpm-debug.log*
 
 # Build outputs
@@ -15,18 +20,14 @@ out/
 *.tsbuildinfo
 *.tscache
 
+# Vite specific
+.vite/
+vite.config.ts.timestamp*
+vite.config.js.timestamp*
+
 # Tailwind
-# (Tailwind itself doesn't generate permanent files, but caches may be present)
 .tailwindcss/
 .tailwind-cache/
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-*.log
 
 # Runtime data
 pids
@@ -34,11 +35,14 @@ pids
 *.seed
 *.pid.lock
 
-# Coverage
+# Coverage directory used by tools like istanbul
 coverage/
 *.lcov
 
-# Environment files
+# nyc test coverage
+.nyc_output
+
+# Environment variables
 .env
 .env.*.local
 .env.local
@@ -46,33 +50,34 @@ coverage/
 .env.test.local
 .env.production.local
 
-# OS files
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
-# IDE/editor folders
+# IDE/Editor files
 .vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 .idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*~
 
-# Cache
+# Cache directories
 .cache/
 .parcel-cache/
 .eslintcache
 .stylelintcache
-.next/
-out/
-vite.config.ts.timestamp*
-vite.config.js.timestamp*
-.vite/
-
-# Storybook
-storybook-static/
-.out/
 
 # Testing
 jest-test-results.json
@@ -82,13 +87,22 @@ cypress/videos/
 playwright-report/
 test-results/
 
-# Misc
+# Storybook
+storybook-static/
+.out/
+
+# Temporary folders
+tmp/
+temp/
+
+# Archive files
 *.tgz
 *.zip
 *.tar
 *.tar.gz
+*.rar
 
-# Yarn / NPM / PNPM
+# Package managers
 .yarn/*
 !.yarn/releases
 !.yarn/plugins
@@ -97,7 +111,10 @@ test-results/
 .pnp.*
 .yarn-integrity
 
-# Lock files (optional, depending on workflow)
+# Optional: Lock files (uncomment if you want to ignore them)
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
+
+# Local Netlify folder
+.netlify
