@@ -5,6 +5,8 @@ import HomePage from './pages/HomePage';
 import MovieDetailsPage from './pages/MovieDetailsPage';
 import BookingPage from './pages/BookingPage';
 import { mockMovies } from './data/mockMovies';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 
 // main app component - this handles all the routing and keeps track of search/filter state
 function App() {
@@ -66,6 +68,16 @@ function App() {
           <Route 
             path="/booking/:id" 
             element={<BookingPage movies={mockMovies} />} 
+          />
+          {/* login page */}
+          <Route 
+            path="/login"
+            element={<LoginPage />} 
+          />
+          {/* register page */}
+          <Route 
+            path="/register"
+            element={<RegisterPage />} 
           />
         </Routes>
         

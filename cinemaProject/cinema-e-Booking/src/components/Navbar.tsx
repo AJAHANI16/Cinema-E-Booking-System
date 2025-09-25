@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import type { Movie } from '../types/Movie';
+
 
 // props for the navbar - this tells it what functions to call when stuff happens
 interface NavbarProps {
@@ -12,6 +13,7 @@ interface NavbarProps {
 // this is the top navigation bar that shows on every page
 const Navbar = ({ onSearch, onFilter, movies }: NavbarProps) => {
   // keep track of what user typed and what genre they picked
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
 
@@ -32,6 +34,9 @@ const Navbar = ({ onSearch, onFilter, movies }: NavbarProps) => {
     onFilter(genre); // tell parent component about the change
   };
 
+  //check if we are on login or register page
+  const hideNavbar = location.pathname === "/login" || location.pathname === "/register";
+
   return (
     <nav className="bg-gray-800 p-4 flex items-center justify-between">
       
@@ -42,56 +47,58 @@ const Navbar = ({ onSearch, onFilter, movies }: NavbarProps) => {
       >
         🎬 Cinema E-Booking
       </Link>
+      {!hideNavbar && (
+        <> {/* search and filter stuff in the middle */}
+        <div className="flex flex-1 mx-4 gap-2">
+            
+            {/* search input - user can type movie names here */}
+            <input
+            type="text"
+            placeholder="Search movies by title..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="w-full px-3 py-2 text-black bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            
+            {/* dropdown to filter by genre */}
+            <select 
+            value={selectedGenre}
+            onChange={handleGenreChange}
+            className="ml-2 px-3 py-2 text-black bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+            <option value="">All Genres</option>
+            {/* loop thru genres and make option for each one */}
+            {genres.map(genre => (
+                <option key={genre} value={genre}>
+                {genre}
+                </option>
+            ))}
+            </select>
+        </div>
 
-      {/* search and filter stuff in the middle */}
-      <div className="flex flex-1 mx-4 gap-2">
-        
-        {/* search input - user can type movie names here */}
-        <input
-          type="text"
-          placeholder="Search movies by title..."
-          value={searchQuery}
-          onChange={handleSearchChange}
-          className="w-full px-3 py-2 text-black bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        
-        {/* dropdown to filter by genre */}
-        <select 
-          value={selectedGenre}
-          onChange={handleGenreChange}
-          className="ml-2 px-3 py-2 text-black bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All Genres</option>
-          {/* loop thru genres and make option for each one */}
-          {genres.map(genre => (
-            <option key={genre} value={genre}>
-              {genre}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* navigation links on the right side */}
-      <div className="space-x-4">
-        <Link 
-          to="/" 
-          className="text-white hover:text-gray-300 transition-colors"
-        >
-          Home
-        </Link>
-        <a 
-          href="#" 
-          className="text-white hover:text-gray-300 transition-colors"
-        >
-          About
-        </a>
-        <a 
-          href="#" 
-          className="text-white hover:text-gray-300 transition-colors"
-        >
-          Contact
-        </a>
-      </div>
+        {/* navigation links on the right side */}
+        <div className="space-x-4">
+            <Link 
+            to="/login" 
+            className="text-white hover:text-gray-300 transition-colors"
+            >
+            Login / Register
+            </Link>
+            <a 
+            href="#" 
+            className="text-white hover:text-gray-300 transition-colors"
+            >
+            About
+            </a>
+            <a 
+            href="#" 
+            className="text-white hover:text-gray-300 transition-colors"
+            >
+            Contact
+            </a>
+        </div>
+        </>
+      )}
     </nav>
   );
 };
