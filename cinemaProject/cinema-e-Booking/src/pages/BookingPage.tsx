@@ -1,23 +1,54 @@
-import { useParams, useSearchParams, Link } from 'react-router-dom';
-import type { Movie } from '../types/Movie';
+// src/pages/BookingPage.tsx
+import { useParams, useSearchParams, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import type { Movie } from "../types/Movie";
 
-interface BookingPageProps {
-  movies: Movie[];
-}
-
-const BookingPage = ({ movies }: BookingPageProps) => {
+const BookingPage = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
-  const showtime = searchParams.get('showtime');
-  
-  const movie = movies.find(m => m.id === parseInt(id || '0'));
+  const showtime = searchParams.get("showtime");
 
-  if (!movie) {
+  const [movie, setMovie] = useState<Movie | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    fetch(`http://127.0.0.1:8000/api/movies/${id}/`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        setMovie(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching movie:", err);
+        setError(String(err));
+        setLoading(false);
+      });
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-600">Loading movie...</p>
+      </div>
+    );
+  }
+
+  if (error || !movie) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Movie Not Found</h1>
-          <Link to="/" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">
+            Movie Not Found
+          </h1>
+          <Link
+            to="/"
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
             Go Back to Home
           </Link>
         </div>
@@ -29,21 +60,27 @@ const BookingPage = ({ movies }: BookingPageProps) => {
     <div className="min-h-screen bg-gray-100">
       <div className="container mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">Book Your Tickets</h1>
-          
+          <h1 className="text-3xl font-bold text-gray-800 mb-6">
+            Book Your Tickets
+          </h1>
+
           {/* Movie Info Summary */}
           <div className="bg-blue-50 rounded-lg p-4 mb-6">
             <div className="flex items-center space-x-4">
               <img
-                src={movie.poster}
+                src={movie.poster_url ?? "https://via.placeholder.com/150x220"}
                 alt={movie.title}
                 className="w-20 h-28 object-cover rounded"
               />
               <div>
-                <h2 className="text-2xl font-semibold text-gray-800">{movie.title}</h2>
-                <p className="text-gray-600">{movie.genre} • {movie.rating}</p>
+                <h2 className="text-2xl font-semibold text-gray-800">
+                  {movie.title}
+                </h2>
+                <p className="text-gray-600">
+                  {movie.genre} • {movie.rating ?? "NR"}
+                </p>
                 <p className="text-blue-600 font-medium">
-                  Selected Showtime: {showtime || 'Not selected'}
+                  Selected Showtime: {showtime || "Not selected"}
                 </p>
               </div>
             </div>
@@ -58,16 +95,9 @@ const BookingPage = ({ movies }: BookingPageProps) => {
               </label>
               <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Choose a date</option>
-                {movie.showDates.map((date, index) => (
-                  <option key={index} value={date}>
-                    {new Date(date).toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
-                  </option>
-                ))}
+                {/* Assuming backend could later provide dates. For now just mock */}
+                <option value="2025-10-01">October 1, 2025</option>
+                <option value="2025-10-02">October 2, 2025</option>
               </select>
             </div>
 
@@ -77,39 +107,27 @@ const BookingPage = ({ movies }: BookingPageProps) => {
                 Number of Tickets
               </label>
               <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Child</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    defaultValue="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">$8.00 each</p>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Adult</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    defaultValue="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">$12.00 each</p>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Senior</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    defaultValue="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">$9.00 each</p>
-                </div>
+                {[
+                  { label: "Child", price: 8 },
+                  { label: "Adult", price: 12 },
+                  { label: "Senior", price: 9 },
+                ].map((t) => (
+                  <div key={t.label}>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      {t.label}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      defaultValue="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      ${t.price.toFixed(2)} each
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -127,7 +145,8 @@ const BookingPage = ({ movies }: BookingPageProps) => {
                       className="w-8 h-8 bg-green-200 rounded border hover:bg-green-300 text-xs"
                       disabled
                     >
-                      {String.fromCharCode(65 + Math.floor(i / 8))}{(i % 8) + 1}
+                      {String.fromCharCode(65 + Math.floor(i / 8))}
+                      {(i % 8) + 1}
                     </button>
                   ))}
                 </div>
@@ -215,8 +234,9 @@ const BookingPage = ({ movies }: BookingPageProps) => {
 
           <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
             <p className="text-sm text-yellow-800">
-              <strong>Note:</strong> This is a prototype booking page for demonstration purposes. 
-              Seat selection, payment processing, and checkout functionality will be implemented in future sprints.
+              <strong>Note:</strong> This is a prototype booking page for
+              demonstration purposes. Seat selection, payment processing, and
+              checkout functionality will be implemented in future sprints.
             </p>
           </div>
         </div>

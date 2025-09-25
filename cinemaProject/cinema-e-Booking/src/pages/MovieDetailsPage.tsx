@@ -1,139 +1,104 @@
-import { useParams, Link } from 'react-router-dom';
-import type { Movie } from '../types/Movie';
+// src/pages/MovieDetailsPage.tsx
+import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import type { Movie } from "../types/Movie";
 
-// props interface - what this component expects to recieve
-interface MovieDetailsPageProps {
-  movies: Movie[]; // all movies so we can find the one we want
-}
-
-// shows detailed info about a single movie including trailer
-const MovieDetailsPage = ({ movies }: MovieDetailsPageProps) => {
-  // get movie ID from the URL (like /movie/1)
+const MovieDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
-  
-  // find the movie with matching ID (convert string to number first)
-  const movie = movies.find(m => m.id === parseInt(id || '0'));
+  const [movie, setMovie] = useState<Movie | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  // if we cant find the movie, show error
-  if (!movie) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <h1 className="text-2xl text-gray-600">Movie not found</h1>
-      </div>
-    );
+  useEffect(() => {
+    if (!id) return;
+    fetch(`http://127.0.0.1:8000/api/movies/${id}/`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        setMovie(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching movie:", err);
+        setError(String(err));
+        setLoading(false);
+      });
+  }, [id]);
+
+  if (loading) {
+    return <div className="p-8">Loading...</div>;
   }
 
-  // this function gets the video ID from youtube URL so we can embed it
-  const getYouTubeVideoId = (url: string) => {
-    // regex to match youtube URLs and extract the video ID part
-    const match = url.match(/(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/);
-    return match ? match[1] : null; // return the ID or null if we cant find it
-  };
+  if (error) {
+    return <div className="p-8 text-red-600">Error: {error}</div>;
+  }
 
-  // get video ID from trailer URL
-  const videoId = getYouTubeVideoId(movie.trailerUrl);
+  if (!movie) {
+    return <div className="p-8">Movie not found</div>;
+  }
+
+  // build YouTube embed URL from youtube id (if present)
+  const embedUrl = movie.trailer_youtube_id
+    ? `https://www.youtube.com/embed/${movie.trailer_youtube_id}`
+    : null;
+
+  const showtimes = movie.showtimes ?? ["2:00 PM", "5:00 PM", "8:00 PM"];
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* header with back button */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <Link 
-            to="/"
-            className="text-blue-500 hover:text-blue-600 font-medium"
-          >
-            ← Back to Movies
-          </Link>
+    <div className="p-8 max-w-5xl mx-auto">
+      <div className="flex gap-6">
+        <img
+          src={movie.poster_url ?? "https://via.placeholder.com/300x450"}
+          alt={movie.title}
+          className="w-56 object-cover rounded"
+        />
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold mb-2">{movie.title}</h1>
+          <p className="text-sm text-gray-600 mb-4">
+            {movie.rating ?? "NR"} • {movie.genre ?? "Unknown genre"}
+          </p>
+          <p className="text-gray-800 mb-4">{movie.description}</p>
+
+          <div>
+            <h3 className="font-semibold mb-2">Showtimes</h3>
+            <div className="flex gap-2">
+              {showtimes.map((s) => (
+                <button
+                  key={s}
+                  onClick={() =>
+                    navigate(`/booking/${movie.id}?showtime=${encodeURIComponent(s)}`, {
+                      state: { movie, showtime: s },
+                    })
+                  }
+                  className="bg-blue-500 text-white px-3 py-1 rounded"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* main content area */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
-          {/* left side - poster and basic info */}
-          <div>
-            <img
-              src={movie.poster}
-              alt={movie.title}
-              className="w-full max-w-md mx-auto rounded-lg shadow-lg" // center poster and add shadow
+      <div className="mt-6">
+        <h3 className="font-semibold mb-2">Trailer</h3>
+        {embedUrl ? (
+          <div className="aspect-video">
+            <iframe
+              width="100%"
+              height="480"
+              src={embedUrl}
+              title={`${movie.title} trailer`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
             />
-            
-            {/* movie details like genre, rating etc */}
-            <div className="mt-6 space-y-3">
-              <div>
-                <h3 className="font-semibold text-gray-700">Genre:</h3>
-                <p className="text-gray-600">{movie.genre}</p>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold text-gray-700">Rating:</h3>
-                <p className="text-gray-600">{movie.rating}</p>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold text-gray-700">Director:</h3>
-                <p className="text-gray-600">{movie.director}</p>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold text-gray-700">Cast:</h3>
-                <p className="text-gray-600">{movie.cast.join(', ')}</p> {/* turn array into comma seperated list */}
-              </div>
-            </div>
           </div>
-
-          {/* right side - movie description and trailer */}
-          <div>
-            <h1 className="text-4xl font-bold text-gray-800 mb-4">{movie.title}</h1>
-            
-            {/* plot synopsis */}
-            <div className="mb-6">
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">Synopsis</h3>
-              <p className="text-gray-600 leading-relaxed">{movie.description}</p>
-            </div>
-
-            {/* embedded youtube trailer (only show if we got valid video ID) */}
-            {videoId && (
-              <div className="mb-6">
-                <h3 className="text-xl font-semibold text-gray-700 mb-3">Trailer</h3>
-                {/* responsive video container */}
-                <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${videoId}`}
-                    title={`${movie.title} Trailer`}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="absolute inset-0 w-full h-full"
-                  ></iframe>
-                </div>
-              </div>
-            )}
-
-            {/* showtimes and booking buttons */}
-            <div>
-              <h3 className="text-xl font-semibold text-gray-700 mb-3">Showtimes & Booking</h3>
-              
-              {/* make clickable buttons for each showtime */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {movie.showtimes.map((time, index) => (
-                  <Link
-                    key={index}
-                    to={`/booking/${movie.id}?showtime=${encodeURIComponent(time)}`} // go to booking page with time
-                    className="bg-blue-500 text-white py-3 px-4 rounded-lg text-center font-medium hover:bg-blue-600 transition-colors"
-                  >
-                    {time}
-                  </Link>
-                ))}
-              </div>
-              
-              {/* helpful text */}
-              <p className="mt-4 text-sm text-gray-600">
-                Click on a showtime to book your tickets. All times shown are in local timezone.
-              </p>
-            </div>
-          </div>
-        </div>
+        ) : (
+          <div>No trailer available</div>
+        )}
       </div>
     </div>
   );
