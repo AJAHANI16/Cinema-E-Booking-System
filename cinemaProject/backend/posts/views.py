@@ -16,8 +16,9 @@ class MovieViewSet(viewsets.ModelViewSet):
         # get the query parameter from url
         q = self.request.query_params.get("q")
 
-        # if there is a query, return only the movies that has a title that contains it
+        # if we have ?q=, we can narrow the existing queryset by title
         if q:
-            return Movie.objects.filter(title__icontains=q)
-        # If no query, return every movie
-        return Movie.objects.all()
+            qs = Movie.objects.filter(title__icontains=q)
+
+        # Return in alphabetical order
+        return qs.order_by("title")
