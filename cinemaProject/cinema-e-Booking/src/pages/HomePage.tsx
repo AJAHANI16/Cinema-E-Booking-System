@@ -28,7 +28,7 @@ const HomePage = () => {
         <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
             {/* Poster */}
             <img
-                src={movie.poster_url ?? "https://via.placeholder.com/300x450"}
+                src={movie.poster_url ?? "https://placehold.co/450x300"}
                 alt={movie.title}
                 className="w-full h-48 object-cover"
             />

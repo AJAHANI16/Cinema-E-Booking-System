@@ -5,6 +5,7 @@ cd cinemaProject/backend
 echo "Starting Django backend..."
 source venv/bin/activate 2>/dev/null || echo "no venv found"
 python3 manage.py runserver &
+python3 seed.py &
 
 # backend PID
 BACKEND_PID=$!
