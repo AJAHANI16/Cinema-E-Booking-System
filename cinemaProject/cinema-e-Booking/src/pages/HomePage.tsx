@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { Movie } from '../types/Movie';
+import { fetchMovies } from '../data/mockMovies';
+import { useEffect, useState } from 'react';
 
 // this tells the component what props it should expect
 interface HomePageProps {
@@ -7,7 +9,17 @@ interface HomePageProps {
 }
 
 // main home page - shows all the movies split into running now and coming soon
-const HomePage = ({ movies }: HomePageProps) => {
+const HomePage = () => {
+// state to hold movies fetched from backend
+  const [movies, setMovies] = useState<Movie[]>([]);
+  
+  // fetch movies when component mounts
+  useEffect(() => {
+    fetchMovies()
+      .then(data => setMovies(data))
+      .catch(err => console.error('Error fetching movies:', err));
+  }, []);
+
   // seperate movies into 2 groups based on category
   const currentlyRunning = movies.filter(movie => movie.category === 'currently-running');
   const comingSoon = movies.filter(movie => movie.category === 'coming-soon');

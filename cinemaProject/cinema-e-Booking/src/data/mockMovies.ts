@@ -1,5 +1,15 @@
 import type { Movie } from '../types/Movie';
 
+const BASE_URL = 'http://localhost:8000/data'; // base URL for backend API
+
+export async function fetchMovies(): Promise<Movie[]> {
+  const response = await fetch(`${BASE_URL}/movies/`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch movies');
+  }
+  return await response.json();
+}
+
 /**
  * Mock movie data for the Cinema E-Booking System
  * 
