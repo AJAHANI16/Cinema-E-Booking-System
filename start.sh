@@ -5,13 +5,14 @@ cd cinemaProject/backend
 echo "Starting Django backend..."
 source venv/bin/activate 2>/dev/null || echo "no venv found"
 python3 manage.py runserver &
-python3 seed.py &
 
 # backend PID
 BACKEND_PID=$!
 
+python3 seed.py &
+
 # Go to frontend and start React app
-cd ../cinema-e-Booking
+cd ../frontend
 echo "Starting React frontend..."
 npm run dev &
 

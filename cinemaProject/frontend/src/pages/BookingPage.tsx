@@ -1,23 +1,29 @@
-import { useParams, useSearchParams, Link } from 'react-router-dom';
-import type { Movie } from '../types/Movie';
+import { useParams, useSearchParams, Link } from "react-router-dom";
+import type { Movie } from "../types/Movie";
 
 interface BookingPageProps {
   movies: Movie[];
 }
 
 const BookingPage = ({ movies }: BookingPageProps) => {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>(); // use slug instead of id
   const [searchParams] = useSearchParams();
-  const showtime = searchParams.get('showtime');
-  
-  const movie = movies.find(m => m.id === parseInt(id || '0'));
+  const showtime = searchParams.get("showtime");
+
+  // find movie by slug instead of numeric ID
+  const movie = movies.find((m) => m.slug === slug);
 
   if (!movie) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Movie Not Found</h1>
-          <Link to="/" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">
+            Movie Not Found
+          </h1>
+          <Link
+            to="/"
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
             Go Back to Home
           </Link>
         </div>
@@ -29,8 +35,10 @@ const BookingPage = ({ movies }: BookingPageProps) => {
     <div className="min-h-screen bg-gray-100">
       <div className="container mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">Book Your Tickets</h1>
-          
+          <h1 className="text-3xl font-bold text-gray-800 mb-6">
+            Book Your Tickets
+          </h1>
+
           {/* Movie Info Summary */}
           <div className="bg-blue-50 rounded-lg p-4 mb-6">
             <div className="flex items-center space-x-4">
@@ -40,16 +48,20 @@ const BookingPage = ({ movies }: BookingPageProps) => {
                 className="w-20 h-28 object-cover rounded"
               />
               <div>
-                <h2 className="text-2xl font-semibold text-gray-800">{movie.title}</h2>
-                <p className="text-gray-600">{movie.genre} • {movie.rating}</p>
+                <h2 className="text-2xl font-semibold text-gray-800">
+                  {movie.title}
+                </h2>
+                <p className="text-gray-600">
+                  {movie.genre} • {movie.rating}
+                </p>
                 <p className="text-blue-600 font-medium">
-                  Selected Showtime: {showtime || 'Not selected'}
+                  Selected Showtime: {showtime || "Not selected"}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Booking Form (UI Only) */}
+          {/* Booking Form */}
           <div className="space-y-6">
             {/* Show Date Selection */}
             <div>
@@ -58,13 +70,13 @@ const BookingPage = ({ movies }: BookingPageProps) => {
               </label>
               <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Choose a date</option>
-                {movie.showDates.map((date, index) => (
+                {movie.showDates?.map((date, index) => (
                   <option key={index} value={date}>
-                    {new Date(date).toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
+                    {new Date(date).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
                     })}
                   </option>
                 ))}
@@ -77,39 +89,27 @@ const BookingPage = ({ movies }: BookingPageProps) => {
                 Number of Tickets
               </label>
               <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Child</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    defaultValue="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">$8.00 each</p>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Adult</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    defaultValue="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">$12.00 each</p>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Senior</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    defaultValue="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">$9.00 each</p>
-                </div>
+                {[
+                  { type: "Child", price: 8 },
+                  { type: "Adult", price: 12 },
+                  { type: "Senior", price: 9 },
+                ].map(({ type, price }) => (
+                  <div key={type}>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      {type}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      defaultValue="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      ${price.toFixed(2)} each
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -127,7 +127,8 @@ const BookingPage = ({ movies }: BookingPageProps) => {
                       className="w-8 h-8 bg-green-200 rounded border hover:bg-green-300 text-xs"
                       disabled
                     >
-                      {String.fromCharCode(65 + Math.floor(i / 8))}{(i % 8) + 1}
+                      {String.fromCharCode(65 + Math.floor(i / 8))}
+                      {(i % 8) + 1}
                     </button>
                   ))}
                 </div>
@@ -164,42 +165,10 @@ const BookingPage = ({ movies }: BookingPageProps) => {
               />
             </div>
 
-            {/* Order Summary */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-lg font-semibold mb-2">Order Summary</h3>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Child tickets (0 × $8.00)</span>
-                  <span>$0.00</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Adult tickets (0 × $12.00)</span>
-                  <span>$0.00</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Senior tickets (0 × $9.00)</span>
-                  <span>$0.00</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Online booking fee</span>
-                  <span>$1.50</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Sales tax (8.5%)</span>
-                  <span>$0.00</span>
-                </div>
-                <hr className="my-2" />
-                <div className="flex justify-between font-semibold">
-                  <span>Total</span>
-                  <span>$1.50</span>
-                </div>
-              </div>
-            </div>
-
             {/* Action Buttons */}
             <div className="flex space-x-4">
               <Link
-                to={`/movie/${movie.id}`}
+                to={`/movie/${movie.slug}`} // fixed: use slug
                 className="flex-1 bg-gray-500 text-white text-center py-3 rounded-lg hover:bg-gray-600 transition-colors"
               >
                 Back to Movie Details
@@ -215,8 +184,9 @@ const BookingPage = ({ movies }: BookingPageProps) => {
 
           <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
             <p className="text-sm text-yellow-800">
-              <strong>Note:</strong> This is a prototype booking page for demonstration purposes. 
-              Seat selection, payment processing, and checkout functionality will be implemented in future sprints.
+              <strong>Note:</strong> This is a prototype booking page for
+              demonstration purposes. Seat selection, payment processing, and
+              checkout functionality will be implemented in future sprints.
             </p>
           </div>
         </div>
