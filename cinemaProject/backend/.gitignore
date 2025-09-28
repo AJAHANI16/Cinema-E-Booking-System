@@ -283,3 +283,6 @@ docker-compose.override.yml
 # Kubernetes
 *.yaml
 !**/k8s/**/*.yaml
+
+# Custom
+*.setup_done
