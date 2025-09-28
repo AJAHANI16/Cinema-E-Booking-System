@@ -19,7 +19,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+# URL patterns for the project
 urlpatterns = [
+    # returns admin interface
     path("admin/", admin.site.urls),
-    path("api/", include("posts.urls")),  # 👈 mount posts app here
+    #handed off to posts.urls
+    path("api/", include("posts.urls")),  
 ]

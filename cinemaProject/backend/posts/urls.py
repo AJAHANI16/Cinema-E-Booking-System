@@ -4,8 +4,10 @@ from rest_framework.routers import DefaultRouter
 from .views import MovieViewSet   # use relative import for clarity
 
 router = DefaultRouter()
-router.register(r"movies", MovieViewSet, basename="movie")  # 👈 basename is good practice
+# Resgister MovieViewSet with the router
+router.register(r"movies", MovieViewSet, basename="movie")  
 
+#URL patterns for the posts app
 urlpatterns = [
     path("", include(router.urls)),
 ]

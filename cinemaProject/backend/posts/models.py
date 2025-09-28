@@ -1,12 +1,13 @@
 from django.db import models
 from django.utils.text import slugify
-
+# Created a model to store movie details
 class Movie(models.Model):
+    # Possible categories for movies
     CATEGORY_CHOICES = [
         ("currently-running", "Currently Running"),
         ("coming-soon", "Coming Soon"),
     ]
-
+    # Define movie attributes
     title = models.CharField(max_length=200)
     slug = models.SlugField(unique=True, blank=True)
     description = models.TextField()

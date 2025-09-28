@@ -2,6 +2,7 @@
 from rest_framework import serializers
 from .models import Movie
 
+#Converts python objects to JSON
 class MovieSerializer(serializers.ModelSerializer):
     # Rename fields to camelCase for frontend
     poster = serializers.URLField(source="movie_poster_URL", read_only=True)
