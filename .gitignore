@@ -271,7 +271,6 @@ dump.rdb
 .aws/
 
 # Google Cloud
-*.json
 gcloud/
 
 # Heroku
