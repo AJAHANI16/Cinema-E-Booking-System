@@ -1,10 +1,13 @@
+# posts/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from posts.views import MovieViewSet
+from .views import MovieViewSet   # use relative import for clarity
 
 router = DefaultRouter()
-router.register(r'movies', MovieViewSet)
+# Resgister MovieViewSet with the router
+router.register(r"movies", MovieViewSet, basename="movie")  
 
+#URL patterns for the posts app
 urlpatterns = [
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 ]
