@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import type { Movie } from "../types/Movie";
 
 interface NavbarProps {
@@ -9,11 +10,20 @@ interface NavbarProps {
 
 const Navbar = ({ onSearch, onFilter, movies }: NavbarProps) => {
   const location = useLocation();
+  const { isAuthenticated, user, logout, isLoading } = useAuth();
 
   // hide navbar on login/register pages
   const hideNavbar =
     location.pathname === "/login" || location.pathname === "/register";
   if (hideNavbar) return null;
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   // unique genres for filter dropdown
   const genres = movies ? Array.from(new Set(movies.map((m) => m.genre))) : [];
@@ -55,19 +65,37 @@ const Navbar = ({ onSearch, onFilter, movies }: NavbarProps) => {
       )}
 
       {/* nav links */}
-      <div className="flex gap-4">
-        <Link
-          to="/login"
-          className="text-white hover:text-gray-300 transition-colors"
-        >
-          Login / Register
-        </Link>
-        <a href="#" className="text-white hover:text-gray-300 transition-colors">
-          About
-        </a>
-        <a href="#" className="text-white hover:text-gray-300 transition-colors">
-          Contact
-        </a>
+      <div className="flex items-center gap-4">
+        {isLoading ? (
+          <div className="text-white">Loading...</div>
+        ) : isAuthenticated && user ? (
+          <>
+            <span className="text-white">
+              Welcome, {user.first_name || user.username}!
+            </span>
+            <button
+              onClick={handleLogout}
+              className="text-white hover:text-gray-300 transition-colors px-3 py-1 border border-white rounded hover:bg-white hover:text-gray-800"
+            >
+              Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <Link
+              to="/login"
+              className="text-white hover:text-gray-300 transition-colors"
+            >
+              Login
+            </Link>
+            <Link
+              to="/register"
+              className="text-white hover:text-gray-300 transition-colors px-3 py-1 border border-white rounded hover:bg-white hover:text-gray-800"
+            >
+              Register
+            </Link>
+          </>
+        )}
       </div>
     </nav>
   );

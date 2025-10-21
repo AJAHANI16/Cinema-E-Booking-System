@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
+import { AuthProvider } from "./contexts/AuthContext";
 import Navbar from "./components/Navbar";
 import HomePage from "./pages/HomePage";
 import MovieDetailsPage from "./pages/MovieDetailsPage";
@@ -44,29 +45,31 @@ function App() {
   }, [movies, searchQuery, selectedGenre]);
 
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-100">
-        <Navbar
-          onSearch={setSearchQuery}
-          onFilter={setSelectedGenre}
-          movies={movies}
-        />
+    <AuthProvider>
+      <Router>
+        <div className="min-h-screen bg-gray-100">
+          <Navbar
+            onSearch={setSearchQuery}
+            onFilter={setSelectedGenre}
+            movies={movies}
+          />
 
-        <Routes>
-          <Route path="/" element={<HomePage movies={filteredMovies} />} />
-          <Route
-            path="/movie/:slug"
-            element={<MovieDetailsPage movies={movies} />}
-          />
-          <Route
-            path="/booking/:slug"
-            element={<BookingPage movies={movies} />}
-          />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-        </Routes>
-      </div>
-    </Router>
+          <Routes>
+            <Route path="/" element={<HomePage movies={filteredMovies} />} />
+            <Route
+              path="/movie/:slug"
+              element={<MovieDetailsPage movies={movies} />}
+            />
+            <Route
+              path="/booking/:slug"
+              element={<BookingPage movies={movies} />}
+            />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+          </Routes>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
 
