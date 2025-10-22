@@ -46,7 +46,6 @@ if [ ! -f "cinemaProject/$MARKER_FILE" ]; then
   echo "Running database migrations..."
   python manage.py migrate
 
-  echo "Creating Django superuser (${DJANGO_SUPERUSER_USERNAME})..."
   echo "Clearing all existing Django users..."
   python manage.py shell -c "from django.contrib.auth import get_user_model; get_user_model().objects.all().delete()"
 
@@ -57,14 +56,15 @@ if [ ! -f "cinemaProject/$MARKER_FILE" ]; then
     --username "$DJANGO_SUPERUSER_USERNAME" \
     --email "$DJANGO_SUPERUSER_EMAIL" || echo "Superuser may already exist."
 
-  python manage.py shell -c "
-from django.contrib.auth import get_user_model
-User = get_user_model()
-u = User.objects.get(username='$DJANGO_SUPERUSER_USERNAME')
-u.set_password('$DJANGO_SUPERUSER_PASSWORD')
-u.save()
-print(f'Password set for {u.username}')
-"
+  # Ensure password and privileges are set correctly
+  python manage.py shell -c "from django.contrib.auth import get_user_model; \
+User = get_user_model(); \
+u, _ = User.objects.get_or_create(username='$DJANGO_SUPERUSER_USERNAME', defaults={'email': '$DJANGO_SUPERUSER_EMAIL'}); \
+u.set_password('$DJANGO_SUPERUSER_PASSWORD'); \
+u.is_superuser = True; \
+u.is_staff = True; \
+u.save(); \
+print(f'Superuser \"{u.username}\" ready.')"
 
   deactivate
   cd ../..
