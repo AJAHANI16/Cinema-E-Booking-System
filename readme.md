@@ -29,7 +29,7 @@ The software will be developed following a hybrid model that combines **Waterfal
 - Prototypes will be used for UI feedback to reduce risk of failure.
 - Final testing will include subsystem, integration, and acceptance testing.
 
-📅 Final project demonstration: **Tuesday, 11/30/2022**.
+📅 Final project demonstration: **TBD**.
 
 ---
 
