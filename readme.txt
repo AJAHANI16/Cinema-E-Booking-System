@@ -1,94 +1,102 @@
-Cinema E-Booking System
-Problem Statement:
+# Cinema E-Booking System
 
+## Problem Statement
 
-The online Booking system has one theatre and few number of employees and halls. The system keeps information about thousands of movies, show times, and registered customers.
+The online booking system manages one theatre with a few employees and halls. It stores information about thousands of movies, showtimes, and registered customers.
 
-The system is a web-based application that provides internet users to view information about the movies and to book their tickets and seats online.  Users will be able to pay their tickets online, upon payment users can save or print their tickets. 
+The system is a web-based application that allows internet users to:
 
-The system will also keep information about its registered users. Hence, the system should provide a registration facility to its users.  
+- View information about movies.
+- Book tickets and seats online.
+- Pay for tickets online and save or print them.
 
-The system should enable the system administrators to add and update movie information, ticket prices and types, user information. System administrator will view real time statistics of booking, sales, running movies, and registers users.
+The system also stores registered user data and provides registration functionality. Administrators can add and update movies, ticket prices, and user information, as well as view real-time statistics about bookings, sales, running movies, and registered users.
 
-Ticket prices are set according to the age category of the ticket owner. The system has three age categories: Child, adult and senior.
+Ticket prices vary by age category: **Child**, **Adult**, and **Senior**.
 
+---
 
-Development Process:
+## Development Process
 
+The software will be developed following a hybrid model that combines **Waterfall** and **Agile**:
 
-We will develop the software according to a set of predefined requirements. Our process model is an incremental hybrid model that combines both the waterfall and agile methodologies. We will apply Waterfall for the overall project planning; setting phases and pre-planned deliverables, on the other hand, we will take advantage of the flexibility of Agile by injecting Agile practices within our planned phases to produce an early working version of the system. We will schedule coding as set of sprints; Thus, requirements will be refined before each sprint of the incremental process. Will also benefit from Agile by incorporating testing in the development; to ensure that a quality product will be produced.
+- **Waterfall**: Used for overall project planning, phases, and deliverables.
+- **Agile**: Injected within planned phases to refine requirements before each sprint, produce early working versions, and incorporate continuous testing.
 
-Teams can work “Agile” while making sure the processes adhere to the plans created in the initial phase. Development phases that can be handled simultaneously; shouldn’t have to wait for each other. For example, two team members might be working on UI design while other members can start building database tables.   
+**Highlights:**
+- Coding is scheduled in sprints.
+- Teams can work concurrently (e.g., UI design while building database tables).
+- Prototypes will be used for UI feedback to reduce risk of failure.
+- Final testing will include subsystem, integration, and acceptance testing.
 
- Prototypes will be used for to help designing the UI to gain feedbacks and more customer involvement which will reduce the risk of project failure and/or customer dissatisfaction.
+📅 Final project demonstration: **Tuesday, 11/30/2022**.
 
-Once the system is completely implemented, it will be tested according to the developed software components by applying adequate subsystem testing, integration testing, and acceptance testing.
+---
 
-Deadlines for all project deliverables are announced on the course assignment page on eLC. Team leaders should submit deliverables to the corresponding assignment folder on eLC.
-Final project demonstration will be around Tuesday, 11/30/2022.
+## High-Level System Requirements
 
-High-Level System Requirements:
-The system must allow the system administrator to enter movie information. For each movie, the system must record movie title, category, cast, director, producer, synopsis, reviews, trailer picture and video, MPAA-US film rating code [1], and show dates and times.
- 
-The system must allow the system administrator to enter and update ticket prices, online booking fees and promotions.
- 
-The system must allow the system administrator to delete and update movie information. They must also be able to add new administrators, delete or update all members’ information, in some cases the administrator might suspend a member account.
- 
-The system must allow the system administrator to add promotions to the systems. The system must send email promotions, offered by the system administrator, to all registered users who have subscribed for promotions.
- 
-The system must allow web users to register for the system. To register, users should provide their password, personal information (name, phone number, email address, and password). They might optionally, provide payment information (card type, number, and expiration date, and billing address) and home address info (street, city, state and zip code).
- 
+### Movie Management
+- Administrators can enter, update, or delete movie information.
+- Each movie record must include:
+  - Title
+  - Category
+  - Cast
+  - Director
+  - Producer
+  - Synopsis
+  - Reviews
+  - Trailer picture and video
+  - MPAA-US film rating code [[1]](https://www.filmratings.com/)
+  - Show dates and times
 
-Users can provide only one shipping address and a maximum of three payments cards.
+### Ticket & Promotions Management
+- Administrators can set ticket prices, online booking fees, and promotions.
+- Promotions must be sent via email to subscribed users.
 
- 
-User’s registration is verified by entering a verification code that is generated by the system and sent to the user’s email address. After confirmation, the customer will be assigned a unique account ID. Registered users (Customers) can login using their email address and password. Each email address will be linked to one account ID and each account must belong to one customer.
- 
-The system must provide a secure forget-password facility.
- 
-Registered users can subscribe/unsubscribe for promotions and offered by the system administrator.
- 
-Registered user must be able to view and modify their user profile at any time. They may also change their password. However, users cannot change their email address.
- 
-The system should provide a booking facility for all users. This should be available on all relevant screens such as browsing and searching.
- 
-The system must store booking information: Booking number, ticket number, movie title, show date and time and credit card number.
- 
-The system must provide a browse facility. Initially, the home page will be filtered by Now playing movies and coming soon movies, displaying movies’ title, rating, and trailer.
- 
-The system must provide the web users with an interface to a search and filtering facility; users can search movies by category, title, or show date. Relevant search results should be displayed on screen. The menu should be updated to show the selected movie show dates.
- 
-When filtering by a specific date, all show times for that date should be displayed.  **
- 
-To book tickets, users should select the movie, show date and time, the number of ticket and the age category for each ticket.
- 
-Users should be able to select their seats. The system must provide a graphical view of the hall and seats so that users can select their seats easily.
- 
-Only registered and signed-in users can book tickets. If the user is not signed-in, the system should display the login page.
- 
-The system must provide a secured checkout (payment) facility. The system must allow customers to use their promotion codes in order to take advantage of current discount promotions.
- 
-Upon successful payment, the system should display a booking confirmation page/ window, displaying booking number, order details, and the order total. Along with the confirmation page, a confirmation e-mail should be sent to the user’s email address.
- 
-Order total price is the sum of tickets prices, sales tax, and online fees.
- 
-Customers must be able to view their order history.
- 
-Users should be able to return their tickets. Customers will receive a refund if they canceled the ticket(s) up to 60 minutes before the show time. ** Low prioriority
- 
-The system must enable managers and administrators to pull predefined reports; namely sales reports and show reports. ………….. applying filters. *** dropped
- 
-The system must provide multi-user access, assuring correct concurrent behavior. 
- 
-The system should maintain suitable authorization information and authenticate access for different types of users (Administrator, web users and registered users).  User authentication should be implemented by checking user ID and password.
- 
-The system must have an easy-to-use user interface (UI) with screens designed for each part of the system’s functionality and must conform to users’ authorization.
- 
-The user interface must either be accessible from a common Web browser (such as: Internet Explorer, Google Chrome, Mozilla Firefox and Safari).
- 
-The system must use a persistent data store (e.g. MySQL, SQLlite, ...).
- 
-The system should use accepted standards whenever possible (HTML, CGI, Servlet API, JDBC, ODBC, SQL, etc.).  The system must be coded in either Java or C++, possibly incorporating some smaller parts coded in other languages, such as PHP and JavaScript, if needed. 
-References:
+### User Registration
+- Users must provide:
+  - Password
+  - Personal info (name, phone, email)
+  - Optional payment and home address details
+- Users can store:
+  - One shipping address
+  - Up to three payment cards
+- Registration requires email verification.
+- Each email corresponds to one unique account ID.
+- Users can reset forgotten passwords securely.
+- Registered users can:
+  - Subscribe/unsubscribe to promotions.
+  - View/modify their profile (but not change email).
 
- [1] https://www.filmratings.com/
+### Booking & Checkout
+- Users must be registered and signed-in to book.
+- Features include:
+  - Browse/filter/search movies by category, title, or show date.
+  - Select movie, show date/time, ticket quantity, and age category.
+  - Graphical seat selection.
+  - Secured checkout with promotion codes.
+  - Booking confirmation page and email with:
+    - Booking number
+    - Order details
+    - Total price (tickets + tax + online fees)
+- Users can view order history.
+- Tickets may be refunded if canceled up to 60 minutes before showtime (low priority).
+
+### Administration & Reports
+- Administrators can add/remove other admins, suspend accounts, and manage user info.
+- System must provide multi-user access with proper authorization levels.
+- Authentication via user ID and password.
+- Managers/administrators can pull reports (sales, show reports).
+
+### System & UI
+- Persistent datastore (e.g., MySQL, SQLite).
+- Standards compliance (HTML, CGI, SQL, JDBC/ODBC).
+- Code in **Java** or **C++** (with PHP/JavaScript if needed).
+- Web-based UI accessible via modern browsers.
+- Easy-to-use, role-specific UI.
+
+---
+
+## References
+
+[1] [Film Ratings](https://www.filmratings.com/)
