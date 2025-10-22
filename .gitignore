@@ -125,4 +125,5 @@ settings_local.py
 *.backup
 *.orig
 .setup_done
+db.sqlite3
 logs/
