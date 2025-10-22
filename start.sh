@@ -79,9 +79,6 @@ print(f'Superuser \"{u.username}\" ready.')"
     echo "Frontend directory not found, skipping npm install..."
   fi
 
-  # Run seed script (optional)
-  python3 seed.py &
-
   # Mark setup done
   touch "cinemaProject/$MARKER_FILE"
   echo "Setup complete."
@@ -95,6 +92,9 @@ echo "Starting Django backend..."
 source venv/bin/activate 2>/dev/null || echo "venv not found, run setup first!"
 python3 manage.py runserver &
 BACKEND_PID=$!
+
+# Run seed script (optional)
+python3 seed.py &
 
 # Go to frontend and start React app
 cd ../frontend
