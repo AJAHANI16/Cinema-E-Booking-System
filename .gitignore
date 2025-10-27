@@ -126,6 +126,7 @@ settings_local.py
 *.orig
 WARP.md
 TESTING_CHECKLIST.md
+SETUP_INSTRUCTIONS.md
 .setup_done
 db.sqlite3
 logs/
