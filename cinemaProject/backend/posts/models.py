@@ -1,7 +1,6 @@
 from django.db import models
-from django.db.models.fields import PositiveIntegerField
 from django.core.validators import MinValueValidator, RegexValidator
-from rest_framework import settings
+from django.conf import settings
 
 
 # Create your models here.
@@ -34,7 +33,7 @@ class Seats(models.Model):
     number = models.IntegerField()
 
     class Meta:
-        seat_number = (("movieRoom", "row", "number"),)
+        unique_together = (("movieRoom", "row", "number"),)
 
     def __str__(self):
         return f"{self.movieRoom.name} - {self.row}{self.number}"
@@ -114,3 +113,43 @@ class Ticket(models.Model):
 
     def __str__(self):
         return f"{self.showtime} - {self.seat} ({self.ticket_type})"
+
+
+class SavedPaymentMethod(models.Model):
+    class MethodType(models.TextChoices):
+        CARD = "CARD", "Credit Card"
+        PAYPAL = "PAYPAL", "PayPal"
+        APPLE_PAY = "APPLE_PAY", "Apple Pay"
+
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="payment_methods")
+    method_type = models.CharField(max_length=20, choices=MethodType.choices, default=MethodType.CARD)
+    provider = models.CharField(max_length=30, blank=True)
+    provider_ref = models.CharField(max_length=100, blank=True)
+    label = models.CharField(max_length=50, blank=True)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        base = self.label or self.get_method_type_display()
+        return f"{self.customer} - {base}"
+
+
+class CreditCard(models.Model):
+    class Brand(models.TextChoices):
+        VISA = "VISA", "Visa"
+        MASTERCARD = "MASTERCARD", "Mastercard"
+        AMEX = "AMEX", "American Express"
+        DISCOVER = "DISCOVER", "Discover"
+        OTHER = "OTHER", "Other"
+
+    saved_method = models.OneToOneField(SavedPaymentMethod, on_delete=models.CASCADE, related_name="card")
+
+    brand = models.CharField(max_length=20, choices=Brand.choices, default=Brand.OTHER)
+    last4 = models.CharField(max_length=4)
+    exp_month = models.PositiveSmallIntegerField()
+    exp_year = models.PositiveSmallIntegerField()
+    cardholder_name = models.CharField(max_length=100, blank=True)
+    billing_zip = models.CharField(max_length=20, blank=True)
+
+    def __str__(self):
+        return f"{self.get_brand_display()}, {self.last4} (exp {self.exp_month:02d}/{self.exp_year})"
