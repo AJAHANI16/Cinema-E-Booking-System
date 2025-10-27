@@ -1,8 +1,19 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import { checkAuthStatus, loginUser, registerUser, logoutUser } from '../data/auth';
-import type { User, LoginData, RegisterData } from '../data/auth';
+import {
+  createContext,
+  useContext,
+  useReducer,
+  useEffect,
+  type ReactNode,
+} from "react";
+import {
+  checkAuthStatus,
+  loginUser,
+  registerUser,
+  logoutUser,
+} from "../data/auth";
+import type { User, LoginData, RegisterData } from "../data/auth";
 
-// Define the shape of our auth state
+// ====== Types ======
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -10,15 +21,13 @@ interface AuthState {
   error: string | null;
 }
 
-// Define possible actions
 type AuthAction =
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_USER'; payload: User }
-  | { type: 'CLEAR_USER' }
-  | { type: 'SET_ERROR'; payload: string }
-  | { type: 'CLEAR_ERROR' };
+  | { type: "SET_LOADING"; payload: boolean }
+  | { type: "SET_USER"; payload: User }
+  | { type: "CLEAR_USER" }
+  | { type: "SET_ERROR"; payload: string }
+  | { type: "CLEAR_ERROR" };
 
-// Define context type
 interface AuthContextType extends AuthState {
   login: (loginData: LoginData) => Promise<void>;
   register: (registerData: RegisterData) => Promise<void>;
@@ -26,7 +35,7 @@ interface AuthContextType extends AuthState {
   clearError: () => void;
 }
 
-// Initial state
+// ====== Initial State ======
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
@@ -34,12 +43,12 @@ const initialState: AuthState = {
   error: null,
 };
 
-// Auth reducer
+// ====== Reducer ======
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
-    case 'SET_LOADING':
+    case "SET_LOADING":
       return { ...state, isLoading: action.payload };
-    case 'SET_USER':
+    case "SET_USER":
       return {
         ...state,
         user: action.payload,
@@ -47,7 +56,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         isLoading: false,
         error: null,
       };
-    case 'CLEAR_USER':
+    case "CLEAR_USER":
       return {
         ...state,
         user: null,
@@ -55,95 +64,96 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         isLoading: false,
         error: null,
       };
-    case 'SET_ERROR':
-      return {
-        ...state,
-        error: action.payload,
-        isLoading: false,
-      };
-    case 'CLEAR_ERROR':
+    case "SET_ERROR":
+      return { ...state, error: action.payload, isLoading: false };
+    case "CLEAR_ERROR":
       return { ...state, error: null };
     default:
       return state;
   }
 }
 
-// Create context
+// ====== Context ======
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Provider component
 interface AuthProviderProps {
   children: ReactNode;
 }
 
+// ====== Provider ======
 export function AuthProvider({ children }: AuthProviderProps) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Check authentication status on mount
+  // Load session on mount
   useEffect(() => {
-    async function initializeAuth() {
+    const initializeAuth = async () => {
       try {
-        dispatch({ type: 'SET_LOADING', payload: true });
+        dispatch({ type: "SET_LOADING", payload: true });
         const authStatus = await checkAuthStatus();
-        
+
         if (authStatus.isAuthenticated && authStatus.user) {
-          dispatch({ type: 'SET_USER', payload: authStatus.user });
+          dispatch({ type: "SET_USER", payload: authStatus.user });
+          localStorage.setItem("user", JSON.stringify(authStatus.user));
         } else {
-          dispatch({ type: 'CLEAR_USER' });
+          dispatch({ type: "CLEAR_USER" });
+          localStorage.removeItem("user");
         }
       } catch (error) {
-        console.error('Failed to check auth status:', error);
-        dispatch({ type: 'CLEAR_USER' });
+        console.error("Failed to check auth status:", error);
+        dispatch({ type: "CLEAR_USER" });
       }
-    }
+    };
 
     initializeAuth();
   }, []);
 
-  // Login function
+  // Login
   const login = async (loginData: LoginData) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'CLEAR_ERROR' });
-      
+      dispatch({ type: "SET_LOADING", payload: true });
+      dispatch({ type: "CLEAR_ERROR" });
       const response = await loginUser(loginData);
-      dispatch({ type: 'SET_USER', payload: response.user });
+      dispatch({ type: "SET_USER", payload: response.user });
+      localStorage.setItem("user", JSON.stringify(response.user));
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Login failed' });
+      const message =
+        error instanceof Error ? error.message : "Login failed. Try again.";
+      dispatch({ type: "SET_ERROR", payload: message });
       throw error;
     }
   };
 
-  // Register function
+  // Register
   const register = async (registerData: RegisterData) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'CLEAR_ERROR' });
-      
+      dispatch({ type: "SET_LOADING", payload: true });
+      dispatch({ type: "CLEAR_ERROR" });
       const response = await registerUser(registerData);
-      dispatch({ type: 'SET_USER', payload: response.user });
+      dispatch({ type: "SET_USER", payload: response.user });
+      localStorage.setItem("user", JSON.stringify(response.user));
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Registration failed' });
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Registration failed. Please try again.";
+      dispatch({ type: "SET_ERROR", payload: message });
       throw error;
     }
   };
 
-  // Logout function
+  // Logout
   const logout = async () => {
     try {
       await logoutUser();
-      dispatch({ type: 'CLEAR_USER' });
     } catch (error) {
-      console.error('Logout failed:', error);
-      // Even if logout fails on server, clear user from client
-      dispatch({ type: 'CLEAR_USER' });
+      console.error("Logout failed:", error);
+    } finally {
+      localStorage.removeItem("user");
+      dispatch({ type: "CLEAR_USER" });
     }
   };
 
-  // Clear error function
-  const clearError = () => {
-    dispatch({ type: 'CLEAR_ERROR' });
-  };
+  const clearError = () => dispatch({ type: "CLEAR_ERROR" });
 
   const contextValue: AuthContextType = {
     ...state,
@@ -153,18 +163,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     clearError,
   };
 
+  // Do NOT export anything else from this file → keeps react-refresh happy
   return (
     <AuthContext.Provider value={contextValue}>
-      {children}
+      {state.isLoading ? (
+        <div className="flex items-center justify-center h-screen text-gray-600">
+          Loading...
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 }
 
-// Custom hook to use auth context
+// ====== Hook ======
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

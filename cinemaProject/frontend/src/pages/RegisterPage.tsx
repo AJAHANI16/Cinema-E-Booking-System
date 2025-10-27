@@ -1,202 +1,208 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+// src/pages/RegisterPage.tsx
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { registerUser } from "../data/auth";
+import Navbar from "../components/Navbar";
 
-const RegisterPage = () => {
-    const [formData, setFormData] = useState({
-        username: '',
-        email: '',
-        password: '',
-        password_confirm: '',
-        first_name: '',
-        last_name: '',
-    });
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    const { register, isAuthenticated, isLoading, error, clearError } = useAuth();
-    const navigate = useNavigate();
+export default function RegisterPage() {
+  const navigate = useNavigate();
 
-    // Redirect if already authenticated
-    useEffect(() => {
-        if (isAuthenticated) {
-            navigate('/');
-        }
-    }, [isAuthenticated, navigate]);
+  const [form, setForm] = useState({
+    username: "",
+    first_name: "",
+    last_name: "",
+    email: "",
+    password: "",
+    password_confirm: "",
+    subscribed_to_promotions: false,
+  });
 
-    // Clear errors when component mounts
-    useEffect(() => {
-        clearError();
-    }, []); // Only run on mount
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value,
-        });
-    };
+  const onChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLInputElement>
+  ) => {
+    const { name, value, type, checked } = e.target as HTMLInputElement;
+    setForm((f) => ({ ...f, [name]: type === "checkbox" ? checked : value }));
+  };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        if (isSubmitting) return;
-        
-        if (formData.password !== formData.password_confirm) {
-            alert("Passwords don't match!");
-            return;
-        }
-        
-        setIsSubmitting(true);
-        
-        try {
-            await register(formData);
-            // Navigation will happen automatically due to useEffect above
-        } catch (error) {
-            // Error is handled by the auth context
-            console.error('Registration error:', error);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null);
+    setMsg(null);
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-100">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Loading...</p>
-                </div>
-            </div>
-        );
+    if (form.password !== form.password_confirm) {
+      setErr("Passwords do not match.");
+      return;
     }
 
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 py-8">
-            <div className="w-full max-w-md">
-                <h1 className="text-3xl font-bold text-center mb-8">Create Account</h1>
-                
-                {error && (
-                    <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-                        <div className="text-sm font-semibold mb-2">Registration Error:</div>
-                        <div className="whitespace-pre-line text-sm">
-                            {error}
-                        </div>
-                    </div>
-                )}
-                
-                <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-2">
-                                First Name (Optional)
-                            </label>
-                            <input
-                                type="text"
-                                id="first_name"
-                                name="first_name"
-                                value={formData.first_name}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                disabled={isSubmitting}
-                            />
-                        </div>
-                        
-                        <div>
-                            <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-2">
-                                Last Name (Optional)
-                            </label>
-                            <input
-                                type="text"
-                                id="last_name"
-                                name="last_name"
-                                value={formData.last_name}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                disabled={isSubmitting}
-                            />
-                        </div>
-                    </div>
-                    
-                    <div className="mb-4">
-                        <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                            Username *
-                        </label>
-                        <input
-                            type="text"
-                            id="username"
-                            name="username"
-                            value={formData.username}
-                            onChange={handleChange}
-                            required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            disabled={isSubmitting}
-                        />
-                    </div>
-                    
-                    <div className="mb-4">
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                            Email *
-                        </label>
-                        <input
-                            type="email"
-                            id="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            disabled={isSubmitting}
-                        />
-                    </div>
-                    
-                    <div className="mb-4">
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                            Password *
-                        </label>
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            disabled={isSubmitting}
-                        />
-                    </div>
-                    
-                    <div className="mb-6">
-                        <label htmlFor="password_confirm" className="block text-sm font-medium text-gray-700 mb-2">
-                            Confirm Password *
-                        </label>
-                        <input
-                            type="password"
-                            id="password_confirm"
-                            name="password_confirm"
-                            value={formData.password_confirm}
-                            onChange={handleChange}
-                            required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            disabled={isSubmitting}
-                        />
-                    </div>
-                    
-                    <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
-                    >
-                        {isSubmitting ? 'Creating Account...' : 'Register'}
-                    </button>
-                    
-                    <div className="mt-4 text-center">
-                        <Link to="/login" className="text-blue-500 hover:text-blue-600 hover:underline">
-                            Already have an account? Login
-                        </Link>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
+    setLoading(true);
+    try {
+      const payload = {
+        username: form.username.trim(),
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        password_confirm: form.password_confirm,
+        subscribed_to_promotions: form.subscribed_to_promotions,
+      };
 
-export default RegisterPage;
+      const res = await registerUser(payload);
+      setMsg(res.message || "Registration successful. Check your email to verify your account.");
+
+      // Redirect to login after a brief delay
+      setTimeout(() => navigate("/login"), 1200);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Registration failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Navbar />
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 border border-gray-200">
+          <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-6">
+            Create Account
+          </h1>
+          <p className="text-center text-gray-500 text-sm mb-6">
+            Join Cinema E-Booking and start reserving seats.
+          </p>
+
+          {msg && (
+            <div className="mb-4 rounded-lg bg-green-50 border border-green-400 text-green-700 p-3 text-sm">
+              {msg}
+            </div>
+          )}
+          {err && (
+            <div className="mb-4 rounded-lg bg-red-50 border border-red-400 text-red-700 p-3 text-sm whitespace-pre-line">
+              {err}
+            </div>
+          )}
+
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Username
+              </label>
+              <input
+                name="username"
+                value={form.username}
+                onChange={onChange}
+                className="mt-1 w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                required
+                autoComplete="username"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  First Name
+                </label>
+                <input
+                  name="first_name"
+                  value={form.first_name}
+                  onChange={onChange}
+                  className="mt-1 w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                  required
+                  autoComplete="given-name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Last Name
+                </label>
+                <input
+                  name="last_name"
+                  value={form.last_name}
+                  onChange={onChange}
+                  className="mt-1 w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                  required
+                  autoComplete="family-name"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={onChange}
+                className="mt-1 w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                required
+                autoComplete="email"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={onChange}
+                className="mt-1 w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                required
+                autoComplete="new-password"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                name="password_confirm"
+                value={form.password_confirm}
+                onChange={onChange}
+                className="mt-1 w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                required
+                autoComplete="new-password"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="subscribed_to_promotions"
+                checked={form.subscribed_to_promotions}
+                onChange={onChange}
+              />
+              Register for promotions
+            </label>
+
+            <button
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg py-2.5 shadow hover:opacity-90 transition"
+            >
+              {loading ? "Creating account..." : "Register"}
+            </button>
+
+            <div className="text-center text-sm mt-4">
+              <span className="text-gray-600">Already have an account? </span>
+              <Link
+                to="/login"
+                className="text-blue-600 hover:underline font-medium"
+              >
+                Log in
+              </Link>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}

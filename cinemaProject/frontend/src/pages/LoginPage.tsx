@@ -1,129 +1,181 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+// src/pages/LoginPage.tsx
+import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { requestPasswordReset } from "../data/auth";
+import { useNavigate, Link } from "react-router-dom";
+import Navbar from "../components/Navbar";
 
-const LoginPage = () => {
-    const [formData, setFormData] = useState({
-        email: '',
-        password: '',
-    });
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    const { login, isAuthenticated, isLoading, error, clearError } = useAuth();
-    const navigate = useNavigate();
+export default function LoginPage() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
 
-    // Redirect if already authenticated
-    useEffect(() => {
-        if (isAuthenticated) {
-            navigate('/');
-        }
-    }, [isAuthenticated, navigate]);
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    remember_me: false,
+  });
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [resetEmail, setResetEmail] = useState("");
+  const [showReset, setShowReset] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-    // Clear errors when component mounts
-    useEffect(() => {
-        clearError();
-    }, []); // Only run on mount
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setForm((f) => ({ ...f, [name]: type === "checkbox" ? checked : value }));
+  };
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value,
-        });
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        if (isSubmitting) return;
-        
-        setIsSubmitting(true);
-        
-        try {
-            await login(formData);
-            // Navigation will happen automatically due to useEffect above
-        } catch (error) {
-            // Error is handled by the auth context
-            console.error('Login error:', error);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-100">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Loading...</p>
-                </div>
-            </div>
-        );
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null);
+    setMsg(null);
+    setLoading(true);
+    try {
+      await login(form);
+      setMsg("Login successful.");
+      navigate("/"); // ✅ Redirect user to homepage after successful login
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Login failed");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
-            <div className="w-full max-w-md">
-                <h1 className="text-3xl font-bold text-center mb-8">Login</h1>
-                
-                {error && (
-                    <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-                        <div className="text-sm font-semibold mb-2">Login Error:</div>
-                        <div className="whitespace-pre-line text-sm">
-                            {error}
-                        </div>
-                    </div>
-                )}
-                
-                <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md">
-                    <div className="mb-4">
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                            Email
-                        </label>
-                        <input
-                            type="email"
-                            id="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            disabled={isSubmitting}
-                        />
-                    </div>
-                    
-                    <div className="mb-6">
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                            Password
-                        </label>
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            disabled={isSubmitting}
-                        />
-                    </div>
-                    
-                    <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
-                    >
-                        {isSubmitting ? 'Logging in...' : 'Login'}
-                    </button>
-                    
-                    <div className="mt-4 text-center">
-                        <Link to="/register" className="text-blue-500 hover:text-blue-600 hover:underline">
-                            Don't have an account? Register
-                        </Link>
-                    </div>
-                </form>
+  const onReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null);
+    setMsg(null);
+    setLoading(true);
+    try {
+      await requestPasswordReset(resetEmail);
+      setMsg("If an account exists for this email, a reset link has been sent.");
+      setShowReset(false);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to request password reset");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Navbar /> {/* ✅ Navbar now included */}
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 border border-gray-200">
+          <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-6">
+            Welcome Back
+          </h1>
+          <p className="text-center text-gray-500 text-sm mb-6">
+            Log in to continue to your account.
+          </p>
+
+          {msg && (
+            <div className="mb-4 rounded-lg bg-green-50 border border-green-400 text-green-700 p-3 text-sm">
+              {msg}
             </div>
-        </div>
-    );
-};
+          )}
+          {err && (
+            <div className="mb-4 rounded-lg bg-red-50 border border-red-400 text-red-700 p-3 text-sm whitespace-pre-line">
+              {err}
+            </div>
+          )}
 
-export default LoginPage;
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={onChange}
+                className="mt-1 w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={onChange}
+                className="mt-1 w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                required
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                name="remember_me"
+                checked={form.remember_me}
+                onChange={onChange}
+                className="accent-blue-600"
+              />
+              Remember me
+            </label>
+
+            <button
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg py-2.5 shadow hover:opacity-90 transition"
+            >
+              {loading ? "Signing in..." : "Log in"}
+            </button>
+
+            <div className="flex items-center justify-between text-sm mt-3">
+              <button
+                type="button"
+                className="text-blue-600 hover:underline"
+                onClick={() => setShowReset(true)}
+              >
+                Forgot password?
+              </button>
+              <Link
+                to="/register"
+                className="text-blue-600 hover:underline font-medium"
+              >
+                Create account
+              </Link>
+            </div>
+          </form>
+
+          {showReset && (
+            <form onSubmit={onReset} className="mt-6 border-t border-gray-200 pt-4 space-y-3">
+              <h2 className="text-sm font-semibold text-gray-700">
+                Reset Password
+              </h2>
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                required
+                className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <div className="flex gap-2">
+                <button
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg px-4 py-2 transition"
+                  type="button"
+                  onClick={() => setShowReset(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg px-4 py-2 shadow hover:opacity-90 transition"
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? "Sending..." : "Send Link"}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}

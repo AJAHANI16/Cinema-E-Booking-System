@@ -124,6 +124,8 @@ settings_local.py
 *.bak
 *.backup
 *.orig
+WARP.md
+TESTING_CHECKLIST.md
 .setup_done
 db.sqlite3
 logs/
