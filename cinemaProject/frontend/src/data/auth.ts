@@ -15,6 +15,9 @@ export interface User {
   state?: string;
   zip_code?: string;
   subscribed_to_promotions?: boolean;
+  is_admin?: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
 }
 
 export interface LoginData {
