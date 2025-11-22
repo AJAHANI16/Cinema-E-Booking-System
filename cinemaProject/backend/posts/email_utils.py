@@ -163,3 +163,11 @@ def send_welcome_email(user):
         html_message=html_message,
         fail_silently=False,
     )
+def send_promotion_email(user_email: str, subject: str, message: str):
+    send_mail(
+        subject,
+        message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user_email],
+        fail_silently=False,
+    )

@@ -2,11 +2,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    MovieViewSet, 
-    register_user, 
-    login_user, 
-    logout_user, 
-    user_profile, 
+    MovieViewSet,
+    register_user,
+    login_user,
+    logout_user,
+    user_profile,
     check_auth_status,
     verify_email,
     resend_verification,
@@ -14,14 +14,27 @@ from .views import (
     reset_password,
     change_password,
     payment_cards,
-    payment_card_detail
+    payment_card_detail,
+    # Admin views
+    MovieAdminViewSet,
+    PromotionAdminViewSet,
+    ShowroomAdminViewSet,
+    ShowtimeAdminViewSet,
 )
 
 router = DefaultRouter()
+# Public movies
 router.register(r"movies", MovieViewSet, basename="movie")
+
+# Admin panel routes
+router.register(r"admin/movies", MovieAdminViewSet, basename="admin-movie")
+router.register(r"admin/promotions", PromotionAdminViewSet, basename="admin-promotion")
+router.register(r"admin/showrooms", ShowroomAdminViewSet, basename="admin-showroom")
+router.register(r"admin/showtimes", ShowtimeAdminViewSet, basename="admin-showtime")
 
 urlpatterns = [
     path("", include(router.urls)),
+    
     # Authentication
     path('auth/register/', register_user, name='register'),
     path('auth/login/', login_user, name='login'),

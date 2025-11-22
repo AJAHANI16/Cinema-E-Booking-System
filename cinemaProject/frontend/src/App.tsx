@@ -14,6 +14,17 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import type { Movie } from "./types/Movie";
 import { fetchMovies } from "./data/api";
 
+// Admin Pages
+import AdminPage from "./pages/admin/AdminPage";
+import AddMoviePage from "./pages/admin/AddMoviePage";
+import AddPromotionPage from "./pages/admin/AddPromotionPage";
+import AddShowtimePage from "./pages/admin/AddShowtimePage";
+import ManageUsersPage from "./pages/admin/ManageUsersPage";
+import ManageMoviesPage from "./pages/admin/ManageMoviesPage";
+import ManagePromotionsPage from "./pages/admin/ManagePromotionsPage";
+import ManageShowtimesPage from "./pages/admin/ManageShowtimesPage";
+
+
 function AppContent() {
   const location = useLocation();
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -112,6 +123,16 @@ function AppContent() {
 
         {/* User Profile */}
         <Route path="/profile" element={<ProfilePage />} />
+
+        {/* Admin Routes */}
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin/manage-users" element={<ManageUsersPage />} />
+        <Route path="/admin/manage-movies" element={<ManageMoviesPage />} />
+        <Route path="/admin/manage-promotions" element={<ManagePromotionsPage />} />
+        <Route path="/admin/manage-showtimes" element={<ManageShowtimesPage />} />
+        <Route path="/admin/add-movie" element={<AddMoviePage />} />
+        <Route path="/admin/add-promotion" element={<AddPromotionPage />} />
+        <Route path="/admin/add-showtime" element={<AddShowtimePage />} />
       </Routes>
     </div>
   );

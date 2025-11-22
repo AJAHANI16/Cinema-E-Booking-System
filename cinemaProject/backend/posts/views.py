@@ -1,23 +1,35 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.db import transaction
-from .models import Movie, UserProfile, PaymentCard
+from django.utils import timezone
+
+from .models import Movie, UserProfile, PaymentCard, Promotion, Showroom, Showtime
 from .serializers import (
-    MovieSerializer, UserRegistrationSerializer, UserSerializer,
-    PaymentCardSerializer, ProfileUpdateSerializer, PasswordChangeSerializer
+    MovieSerializer,
+    UserRegistrationSerializer,
+    UserSerializer,
+    PaymentCardSerializer,
+    ProfileUpdateSerializer,
+    PasswordChangeSerializer,
+    PromotionSerializer,
+    ShowroomSerializer,
+    ShowtimeSerializer,
 )
 from .email_utils import (
-    send_verification_email, send_password_reset_email,
-    send_profile_change_notification, send_welcome_email
+    send_verification_email,
+    send_password_reset_email,
+    send_profile_change_notification,
+    send_welcome_email,
+    send_promotion_email,
 )
 
 
 # ---------------------------------------------------------
-# Movie View
+# Movie Views (Public)
 # ---------------------------------------------------------
 class MovieViewSet(viewsets.ModelViewSet):
     """Public API for browsing movies"""
@@ -32,7 +44,6 @@ class MovieViewSet(viewsets.ModelViewSet):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_user(request):
-    """Register a new user"""
     serializer = UserRegistrationSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -61,13 +72,11 @@ def register_user(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def login_user(request):
-    """Authenticate user with username or email"""
     username = request.data.get("username")
     email = request.data.get("email")
     password = request.data.get("password")
     remember_me = request.data.get("remember_me", False)
 
-    # Allow login with email or username
     if email and not username:
         try:
             user = User.objects.get(email=email)
@@ -79,36 +88,25 @@ def login_user(request):
     if user is None:
         return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Ensure profile exists
     profile, _ = UserProfile.objects.get_or_create(user=user)
 
-    # Account verification checks
     if not user.is_active:
-        return Response(
-            {"error": "Account is not activated. Please check your email to verify your account."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+        return Response({"error": "Account is not activated. Please check your email to verify your account."},
+                        status=status.HTTP_403_FORBIDDEN)
 
     if not profile.is_verified:
-        return Response(
-            {"error": "Email not verified. Please check your inbox for the verification link."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+        return Response({"error": "Email not verified. Please check your inbox for the verification link."},
+                        status=status.HTTP_403_FORBIDDEN)
 
-    # Log in user and set session expiration
     login(request, user)
     request.session.set_expiry(2592000 if remember_me else 0)
 
-    return Response(
-        {"message": "Login successful", "user": UserSerializer(user).data},
-        status=status.HTTP_200_OK,
-    )
+    return Response({"message": "Login successful", "user": UserSerializer(user).data}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logout_user(request):
-    """Log out the current user"""
     logout(request)
     return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
 
@@ -119,7 +117,6 @@ def logout_user(request):
 @api_view(["GET", "PUT"])
 @permission_classes([IsAuthenticated])
 def user_profile(request):
-    """Retrieve or update the authenticated user's profile"""
     if request.method == "GET":
         cards = PaymentCard.objects.filter(user=request.user)
         return Response(
@@ -149,7 +146,6 @@ def user_profile(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def check_auth_status(request):
-    """Check whether the user is authenticated"""
     if request.user.is_authenticated:
         return Response(
             {"isAuthenticated": True, "user": UserSerializer(request.user).data},
@@ -164,17 +160,14 @@ def check_auth_status(request):
 @api_view(["GET", "POST"])
 @permission_classes([AllowAny])
 def verify_email(request, token):
-    """Verify user's email using the provided token"""
     try:
         profile = UserProfile.objects.get(verification_token=token)
     except UserProfile.DoesNotExist:
         return Response({"error": "Invalid verification token"}, status=status.HTTP_400_BAD_REQUEST)
 
     if not profile.is_verification_token_valid():
-        return Response(
-            {"error": "Verification link has expired. Please request a new one."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return Response({"error": "Verification link has expired. Please request a new one."},
+                        status=status.HTTP_400_BAD_REQUEST)
 
     user = profile.user
     user.is_active = True
@@ -196,7 +189,6 @@ def verify_email(request, token):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def resend_verification(request):
-    """Resend email verification"""
     email = request.data.get("email")
     try:
         user = User.objects.get(email=email)
@@ -209,10 +201,7 @@ def resend_verification(request):
     token = user.profile.generate_verification_token()
     send_verification_email(user, token)
 
-    return Response(
-        {"message": "Verification email sent. Please check your inbox."},
-        status=status.HTTP_200_OK,
-    )
+    return Response({"message": "Verification email sent. Please check your inbox."}, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------
@@ -221,12 +210,10 @@ def resend_verification(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def request_password_reset(request):
-    """Send password reset link to user"""
     email = request.data.get("email")
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
-        # Do not reveal that the email does not exist
         return Response(
             {"message": "If an account exists with this email, you will receive a password reset link."},
             status=status.HTTP_200_OK,
@@ -241,7 +228,6 @@ def request_password_reset(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def reset_password(request, token):
-    """Reset password using a valid token"""
     new_password = request.data.get("new_password")
     new_password_confirm = request.data.get("new_password_confirm")
 
@@ -257,10 +243,8 @@ def reset_password(request, token):
         return Response({"error": "Invalid reset token"}, status=status.HTTP_400_BAD_REQUEST)
 
     if not profile.is_reset_token_valid():
-        return Response(
-            {"error": "Reset link has expired. Please request a new one."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return Response({"error": "Reset link has expired. Please request a new one."},
+                        status=status.HTTP_400_BAD_REQUEST)
 
     user = profile.user
     user.set_password(new_password)
@@ -270,16 +254,13 @@ def reset_password(request, token):
     profile.reset_token_created = None
     profile.save()
 
-    return Response(
-        {"message": "Password reset successfully. You can now log in with your new password."},
-        status=status.HTTP_200_OK,
-    )
+    return Response({"message": "Password reset successfully. You can now log in with your new password."},
+                    status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def change_password(request):
-    """Allow authenticated users to change their password"""
     serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -301,7 +282,6 @@ def change_password(request):
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def payment_cards(request):
-    """List or create payment cards"""
     if request.method == "GET":
         cards = PaymentCard.objects.filter(user=request.user)
         return Response(PaymentCardSerializer(cards, many=True).data, status=status.HTTP_200_OK)
@@ -313,17 +293,14 @@ def payment_cards(request):
     serializer = PaymentCardSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save(user=request.user)
-        return Response(
-            {"message": "Payment card added successfully", "card": serializer.data},
-            status=status.HTTP_201_CREATED,
-        )
+        return Response({"message": "Payment card added successfully", "card": serializer.data},
+                        status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["PUT", "DELETE"])
 @permission_classes([IsAuthenticated])
 def payment_card_detail(request, card_id):
-    """Update or delete a specific payment card"""
     try:
         card = PaymentCard.objects.get(id=card_id, user=request.user)
     except PaymentCard.DoesNotExist:
@@ -333,11 +310,55 @@ def payment_card_detail(request, card_id):
         serializer = PaymentCardSerializer(card, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(
-                {"message": "Payment card updated successfully", "card": serializer.data},
-                status=status.HTTP_200_OK,
-            )
+            return Response({"message": "Payment card updated successfully", "card": serializer.data},
+                            status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     card.delete()
     return Response({"message": "Payment card deleted successfully"}, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------
+# ------------------ Admin Panel Views -------------------
+# ---------------------------------------------------------
+class MovieAdminViewSet(viewsets.ModelViewSet):
+    queryset = Movie.objects.all()
+    serializer_class = MovieSerializer
+    permission_classes = [IsAdminUser]
+
+    @action(detail=True, methods=["post"])
+    def activate(self, request, pk=None):
+        movie = self.get_object()
+        movie.is_active = True
+        movie.save()
+        return Response({"status": "Movie activated"})
+
+
+class PromotionAdminViewSet(viewsets.ModelViewSet):
+    queryset = Promotion.objects.all()
+    serializer_class = PromotionSerializer
+    permission_classes = [IsAdminUser]
+
+    @action(detail=True, methods=["post"])
+    def send_email(self, request, pk=None):
+        promotion = self.get_object()
+        send_promotion_email(promotion)
+        return Response({"status": "Promotion email sent"})
+
+
+class ShowroomAdminViewSet(viewsets.ModelViewSet):
+    queryset = Showroom.objects.all()
+    serializer_class = ShowroomSerializer
+    permission_classes = [IsAdminUser]
+
+
+class ShowtimeAdminViewSet(viewsets.ModelViewSet):
+    queryset = Showtime.objects.all()
+    serializer_class = ShowtimeSerializer
+    permission_classes = [IsAdminUser]
+
+    @action(detail=False, methods=["get"])
+    def upcoming(self, request):
+        upcoming_showtimes = Showtime.objects.filter(start_time__gte=timezone.now())
+        serializer = self.get_serializer(upcoming_showtimes, many=True)
+        return Response(serializer.data)
