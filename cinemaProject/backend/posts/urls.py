@@ -20,6 +20,8 @@ from .views import (
     PromotionAdminViewSet,
     ShowroomAdminViewSet,
     ShowtimeAdminViewSet,
+    UserAdminViewSet,
+    MovieRoomAdminViewSet,
 )
 
 router = DefaultRouter()
@@ -31,6 +33,8 @@ router.register(r"admin/movies", MovieAdminViewSet, basename="admin-movie")
 router.register(r"admin/promotions", PromotionAdminViewSet, basename="admin-promotion")
 router.register(r"admin/showrooms", ShowroomAdminViewSet, basename="admin-showroom")
 router.register(r"admin/showtimes", ShowtimeAdminViewSet, basename="admin-showtime")
+router.register(r"admin/movie-rooms", MovieRoomAdminViewSet, basename="admin-movie-room")
+router.register(r"admin/users", UserAdminViewSet, basename="admin-user")
 
 urlpatterns = [
     path("", include(router.urls)),

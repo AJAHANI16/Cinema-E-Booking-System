@@ -1,26 +1,30 @@
 // src/pages/admin/ManageUsersPage.tsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import AdminNavbar from "./AdminNavbar";
+import http, { extractErrorMessage } from "../../data/http";
 
 interface User {
   id: number;
   username: string;
   email: string;
   is_staff: boolean;
+  is_admin?: boolean;
 }
 
 const ManageUsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get<User[]>("/api/users/");
+      const res = await http.get<User[]>("/admin/users/");
       setUsers(res.data);
+      setError(null);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching users:", err);
+      setError(extractErrorMessage(err));
       setLoading(false);
     }
   };
@@ -33,10 +37,12 @@ const ManageUsersPage: React.FC = () => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
 
     try {
-      await axios.delete(`/api/users/${id}/`);
-      setUsers(users.filter((user) => user.id !== id));
+      await http.delete(`/admin/users/${id}/`);
+      setUsers((prev) => prev.filter((user) => user.id !== id));
+      setError(null);
     } catch (err) {
       console.error("Error deleting user:", err);
+      setError(extractErrorMessage(err));
     }
   };
 
@@ -50,6 +56,8 @@ const ManageUsersPage: React.FC = () => {
         <div className="bg-white shadow-md rounded-lg overflow-x-auto">
           {loading ? (
             <p className="p-4 text-center text-gray-600">Loading users...</p>
+          ) : error ? (
+            <p className="p-4 text-center text-red-600">{error}</p>
           ) : users.length === 0 ? (
             <p className="p-4 text-center text-gray-600">No users found.</p>
           ) : (

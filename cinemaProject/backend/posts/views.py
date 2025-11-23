@@ -7,9 +7,18 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Movie, UserProfile, PaymentCard, Promotion, Showroom, Showtime
+from .models import (
+    Movie,
+    MovieRoom,
+    PaymentCard,
+    Promotion,
+    Showroom,
+    Showtime,
+    UserProfile,
+)
 from .serializers import (
     MovieSerializer,
+    MovieRoomSerializer,
     UserRegistrationSerializer,
     UserSerializer,
     PaymentCardSerializer,
@@ -24,7 +33,7 @@ from .email_utils import (
     send_password_reset_email,
     send_profile_change_notification,
     send_welcome_email,
-    send_promotion_email,
+    send_promotion_email_to_subscribers,
 )
 
 
@@ -342,13 +351,19 @@ class PromotionAdminViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def send_email(self, request, pk=None):
         promotion = self.get_object()
-        send_promotion_email(promotion)
-        return Response({"status": "Promotion email sent"})
+        sent_count = send_promotion_email_to_subscribers(promotion)
+        return Response({"status": f"Promotion email sent to {sent_count} subscriber(s)"})
 
 
 class ShowroomAdminViewSet(viewsets.ModelViewSet):
     queryset = Showroom.objects.all()
     serializer_class = ShowroomSerializer
+    permission_classes = [IsAdminUser]
+
+
+class MovieRoomAdminViewSet(viewsets.ModelViewSet):
+    queryset = MovieRoom.objects.all()
+    serializer_class = MovieRoomSerializer
     permission_classes = [IsAdminUser]
 
 
@@ -359,6 +374,22 @@ class ShowtimeAdminViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def upcoming(self, request):
-        upcoming_showtimes = Showtime.objects.filter(start_time__gte=timezone.now())
+        upcoming_showtimes = Showtime.objects.filter(starts_at__gte=timezone.now())
         serializer = self.get_serializer(upcoming_showtimes, many=True)
         return Response(serializer.data)
+
+
+class UserAdminViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all().order_by("id")
+    serializer_class = UserSerializer
+    permission_classes = [IsAdminUser]
+    http_method_names = ["get", "delete"]
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        if user == request.user:
+            return Response(
+                {"detail": "Admins cannot delete their own account."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)

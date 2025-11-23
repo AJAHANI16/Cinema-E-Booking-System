@@ -47,7 +47,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "username", "email", "first_name", "last_name",
-            "date_joined", "profile", "is_admin"
+            "date_joined", "profile", "is_admin", "is_staff"
         ]
 
     def get_is_admin(self, obj):
@@ -243,6 +243,21 @@ class ShowtimeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Showtime
         fields = "__all__"
+
+    def validate(self, attrs):
+        movie_room = attrs.get("movie_room") or getattr(self.instance, "movie_room", None)
+        starts_at = attrs.get("starts_at") or getattr(self.instance, "starts_at", None)
+
+        if movie_room and starts_at:
+            qs = Showtime.objects.filter(movie_room=movie_room, starts_at=starts_at)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    "Another movie is already scheduled in this showroom at that time."
+                )
+
+        return attrs
 class ShowroomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Showroom

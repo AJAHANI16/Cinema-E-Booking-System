@@ -1,26 +1,80 @@
 // src/pages/admin/ManageShowtimesPage.tsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import AdminNavbar from "./AdminNavbar";
+import http, { extractErrorMessage } from "../../data/http";
 
-interface Showtime {
+interface ShowtimeRow {
   id: number;
   movieTitle: string;
-  date: string;
-  time: string;
+  movieRoomName: string;
+  startsAt: string;
+  format: string;
+  basePrice: number;
 }
 
 const ManageShowtimesPage: React.FC = () => {
-  const [showtimes, setShowtimes] = useState<Showtime[]>([]);
+  const [showtimes, setShowtimes] = useState<ShowtimeRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const formatDateTime = (value: string) => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  };
+
+  const currencyFormatter = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  });
 
   const fetchShowtimes = async () => {
     try {
-      const res = await axios.get<Showtime[]>("/api/showtimes/");
-      setShowtimes(res.data);
+      const [showtimesRes, movieRoomsRes] = await Promise.all([
+        http.get<
+          Array<{
+            id: number;
+            movie: number;
+            movie_room: number;
+            starts_at: string;
+            format: string;
+            base_price: string;
+            movie_title?: string;
+          }>
+        >("/admin/showtimes/"),
+        http.get<
+          Array<{
+            id: number;
+            name: string;
+          }>
+        >("/admin/movie-rooms/"),
+      ]);
+
+      const movieRoomMap = new Map<number, string>();
+      movieRoomsRes.data.forEach((room) => {
+        movieRoomMap.set(room.id, room.name);
+      });
+
+      const normalized = showtimesRes.data
+        .map((showtime) => ({
+          id: showtime.id,
+          movieTitle: showtime.movie_title ?? `Movie #${showtime.movie}`,
+          movieRoomName:
+            movieRoomMap.get(showtime.movie_room) ?? `Room ${showtime.movie_room}`,
+          startsAt: showtime.starts_at,
+          format: showtime.format,
+          basePrice: Number(showtime.base_price),
+        }))
+        .sort(
+        (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()
+        );
+
+      setShowtimes(normalized);
+      setError(null);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching showtimes:", err);
+      setError(extractErrorMessage(err));
       setLoading(false);
     }
   };
@@ -33,10 +87,12 @@ const ManageShowtimesPage: React.FC = () => {
     if (!window.confirm("Are you sure you want to delete this showtime?")) return;
 
     try {
-      await axios.delete(`/api/showtimes/${id}/`);
-      setShowtimes(showtimes.filter((s) => s.id !== id));
+      await http.delete(`/admin/showtimes/${id}/`);
+      setShowtimes((prev) => prev.filter((s) => s.id !== id));
+      setError(null);
     } catch (err) {
       console.error("Error deleting showtime:", err);
+      setError(extractErrorMessage(err));
     }
   };
 
@@ -50,6 +106,8 @@ const ManageShowtimesPage: React.FC = () => {
         <div className="bg-white shadow-md rounded-lg overflow-x-auto">
           {loading ? (
             <p className="p-4 text-center text-gray-600">Loading showtimes...</p>
+          ) : error ? (
+            <p className="p-4 text-center text-red-600">{error}</p>
           ) : showtimes.length === 0 ? (
             <p className="p-4 text-center text-gray-600">No showtimes found.</p>
           ) : (
@@ -58,8 +116,10 @@ const ManageShowtimesPage: React.FC = () => {
                 <tr>
                   <th className="px-4 py-2 text-left">ID</th>
                   <th className="px-4 py-2 text-left">Movie</th>
-                  <th className="px-4 py-2 text-left">Date</th>
-                  <th className="px-4 py-2 text-left">Time</th>
+                  <th className="px-4 py-2 text-left">Auditorium</th>
+                  <th className="px-4 py-2 text-left">Starts At</th>
+                  <th className="px-4 py-2 text-left">Format</th>
+                  <th className="px-4 py-2 text-left">Base Price</th>
                   <th className="px-4 py-2 text-left">Actions</th>
                 </tr>
               </thead>
@@ -71,8 +131,10 @@ const ManageShowtimesPage: React.FC = () => {
                   >
                     <td className="border px-4 py-2">{s.id}</td>
                     <td className="border px-4 py-2">{s.movieTitle}</td>
-                    <td className="border px-4 py-2">{s.date}</td>
-                    <td className="border px-4 py-2">{s.time}</td>
+                    <td className="border px-4 py-2">{s.movieRoomName}</td>
+                    <td className="border px-4 py-2">{formatDateTime(s.startsAt)}</td>
+                    <td className="border px-4 py-2">{s.format}</td>
+                    <td className="border px-4 py-2">{currencyFormatter.format(s.basePrice)}</td>
                     <td className="border px-4 py-2 flex gap-2">
                       <button
                         onClick={() => deleteShowtime(s.id)}

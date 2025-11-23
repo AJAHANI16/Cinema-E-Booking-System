@@ -1,7 +1,6 @@
 # posts/email_utils.py
 from django.core.mail import send_mail
 from django.conf import settings
-from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
 
@@ -163,11 +162,52 @@ def send_welcome_email(user):
         html_message=html_message,
         fail_silently=False,
     )
-def send_promotion_email(user_email: str, subject: str, message: str):
-    send_mail(
-        subject,
-        message,
-        settings.DEFAULT_FROM_EMAIL,
-        [user_email],
-        fail_silently=False,
+def send_promotion_email_to_subscribers(promotion):
+    """Send promotion details to all users subscribed to marketing emails."""
+    from .models import UserProfile  # Local import to avoid circular dependencies
+
+    subscribers = (
+        UserProfile.objects.filter(subscribed_to_promotions=True)
+        .select_related("user")
+        .exclude(user__email="")
     )
+
+    if not subscribers.exists():
+        return 0
+
+    subject = f"{promotion.promo_code} – Save {promotion.discount_percent}% at Cinema E-Booking"
+
+    count = 0
+    for profile in subscribers:
+        user = profile.user
+        greeting_name = user.first_name or user.username or "Movie Fan"
+        html_message = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #4F46E5;">Exclusive Promotion Just for You!</h2>
+                    <p>Hi {greeting_name},</p>
+                    <p>We have a special offer waiting: enjoy <strong>{promotion.discount_percent}% off</strong> your next booking.</p>
+                    <div style="margin: 20px 0; padding: 15px; background-color: #F3F4F6; border-radius: 8px;">
+                        <p style="margin: 0; font-size: 16px;"><strong>Promo Code:</strong> {promotion.promo_code}</p>
+                        <p style="margin: 8px 0 0 0;">Valid from {promotion.start_date:%b %d, %Y} to {promotion.end_date:%b %d, %Y}</p>
+                    </div>
+                    <p>{promotion.description or "Use this code at checkout to save on your next visit."}</p>
+                    <p style="margin-top: 24px;">Happy viewing,<br/>Cinema E-Booking Team</p>
+                </div>
+            </body>
+        </html>
+        """
+        plain_message = strip_tags(html_message)
+
+        send_mail(
+            subject,
+            plain_message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+        count += 1
+
+    return count

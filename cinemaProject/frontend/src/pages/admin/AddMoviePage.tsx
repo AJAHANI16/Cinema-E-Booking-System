@@ -1,42 +1,54 @@
 // src/pages/admin/AddMoviePage.tsx
 import React, { useState } from "react";
-import axios from "axios";
 import AdminNavbar from "./AdminNavbar";
+import http, { extractErrorMessage } from "../../data/http";
 
 const AddMoviePage: React.FC = () => {
   const [title, setTitle] = useState("");
   const [genre, setGenre] = useState("");
   const [rating, setRating] = useState("");
+  const [description, setDescription] = useState("");
   const [duration, setDuration] = useState<number | "">("");
   const [releaseDate, setReleaseDate] = useState("");
   const [poster, setPoster] = useState("");
   const [trailerId, setTrailerId] = useState("");
-  const [message, setMessage] = useState("");
+  const [category, setCategory] = useState("currently-running");
+  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setMessage(null);
+      const durationValue = typeof duration === "number" ? duration : Number(duration);
+      if (!Number.isFinite(durationValue) || durationValue <= 0) {
+        setMessage({ text: "Duration must be a positive number.", type: "error" });
+        return;
+      }
       const payload = {
         title,
         genre,
         rating,
-        duration: Number(duration),
-        releaseDate,
-        poster,
-        trailerId,
+        description,
+        duration: durationValue,
+        release_date: releaseDate || null,
+        movie_poster_URL: poster,
+        trailer_id: trailerId,
+        category,
       };
-      await axios.post("/api/movies/", payload);
-      setMessage("Movie added successfully!");
+      await http.post("/admin/movies/", payload);
+      setMessage({ text: "Movie added successfully!", type: "success" });
       setTitle("");
       setGenre("");
       setRating("");
+      setDescription("");
       setDuration("");
       setReleaseDate("");
       setPoster("");
       setTrailerId("");
+      setCategory("currently-running");
     } catch (err) {
       console.error("Error adding movie:", err);
-      setMessage("Failed to add movie.");
+      setMessage({ text: extractErrorMessage(err), type: "error" });
     }
   };
 
@@ -46,8 +58,12 @@ const AddMoviePage: React.FC = () => {
       <div className="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md mt-6">
         <h1 className="text-2xl font-semibold mb-4">Add Movie</h1>
         {message && (
-          <div className="mb-4 p-2 rounded text-white bg-green-500">
-            {message}
+          <div
+            className={`mb-4 p-2 rounded text-white ${
+              message.type === "success" ? "bg-green-500" : "bg-red-500"
+            }`}
+          >
+            {message.text}
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -74,6 +90,17 @@ const AddMoviePage: React.FC = () => {
           </div>
 
           <div>
+            <label className="block font-medium mb-1">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              rows={4}
+            />
+          </div>
+
+          <div>
             <label className="block font-medium mb-1">Rating</label>
             <input
               type="text"
@@ -89,7 +116,9 @@ const AddMoviePage: React.FC = () => {
             <input
               type="number"
               value={duration}
-              onChange={(e) => setDuration(Number(e.target.value))}
+              onChange={(e) =>
+                setDuration(e.target.value === "" ? "" : Number(e.target.value))
+              }
               required
               className="w-full border border-gray-300 rounded px-3 py-2"
             />
@@ -124,6 +153,18 @@ const AddMoviePage: React.FC = () => {
               onChange={(e) => setTrailerId(e.target.value)}
               className="w-full border border-gray-300 rounded px-3 py-2"
             />
+          </div>
+
+          <div>
+            <label className="block font-medium mb-1">Category</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+            >
+              <option value="currently-running">Currently Running</option>
+              <option value="coming-soon">Coming Soon</option>
+            </select>
           </div>
 
           <button
