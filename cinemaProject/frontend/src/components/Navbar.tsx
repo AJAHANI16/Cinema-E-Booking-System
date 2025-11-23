@@ -110,6 +110,12 @@ export default function Navbar({onSearch, onFilter, movies}: NavbarProps) {
                             >
                                 Profile
                             </Link>
+                            <Link
+                                to="/my-tickets"
+                                className="text-gray-200 hover:text-blue-300 transition font-medium"
+                            >
+                                My Tickets
+                            </Link>
                             <button
                                 onClick={handleLogout}
                                 className="px-3 py-1.5 rounded-md text-sm font-medium bg-red-600 hover:bg-red-500 transition shadow"

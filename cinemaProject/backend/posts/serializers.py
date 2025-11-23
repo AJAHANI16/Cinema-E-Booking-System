@@ -1,7 +1,19 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-from .models import Movie, UserProfile, PaymentCard, Promotion, MovieRoom, Showtime, Showroom
+from django.utils import timezone
+from .models import (
+    Booking,
+    Movie,
+    MovieRoom,
+    PaymentCard,
+    Promotion,
+    Seat,
+    Showtime,
+    Showroom,
+    Ticket,
+    UserProfile,
+)
 
 
 # ============================
@@ -22,8 +34,23 @@ class MovieSerializer(serializers.ModelSerializer):
         ]
 
     def get_showtimes(self, obj):
-        # You will later replace this with DB-driven showtimes
-        return ["2:00 PM", "5:00 PM", "8:00 PM"]
+        upcoming = (
+            Showtime.objects.filter(movie=obj, starts_at__gte=timezone.now())
+            .select_related("movie_room")
+            .order_by("starts_at")
+        )
+
+        return [
+            {
+                "id": showtime.id,
+                "starts_at": showtime.starts_at.isoformat(),
+                "format": showtime.format,
+                "base_price": showtime.base_price,
+                "movie_room": showtime.movie_room_id,
+                "movie_room_name": getattr(showtime.movie_room, "name", None),
+            }
+            for showtime in upcoming
+        ]
 
 
 # ============================
@@ -258,7 +285,45 @@ class ShowtimeSerializer(serializers.ModelSerializer):
                 )
 
         return attrs
+
+
 class ShowroomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Showroom
-        fields = '__all__'
+        fields = "__all__"
+
+
+# ============================
+# SEATS / BOOKINGS
+# ============================
+class SeatSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Seat
+        fields = ["id", "row", "number"]
+
+
+class ShowtimeSummarySerializer(serializers.ModelSerializer):
+    movie_title = serializers.CharField(source="movie.title", read_only=True)
+    movie_slug = serializers.CharField(source="movie.slug", read_only=True)
+    movie_room_name = serializers.CharField(source="movie_room.name", read_only=True)
+
+    class Meta:
+        model = Showtime
+        fields = ["id", "starts_at", "format", "movie_title", "movie_slug", "movie_room_name"]
+
+
+class TicketSerializer(serializers.ModelSerializer):
+    seat = SeatSerializer()
+    showtime = ShowtimeSummarySerializer(read_only=True)
+
+    class Meta:
+        model = Ticket
+        fields = ["id", "seat", "price", "ticket_type", "showtime"]
+
+
+class BookingSerializer(serializers.ModelSerializer):
+    tickets = TicketSerializer(many=True)
+
+    class Meta:
+        model = Booking
+        fields = ["id", "created_at", "status", "total_amount", "tickets"]

@@ -94,15 +94,16 @@ const MovieDetailsPage = ({ movies }: MovieDetailsPageProps) => {
                 Showtimes
               </h3>
               <div className="flex flex-wrap gap-2">
-                {movie.showtimes.map((time, idx) => (
+                {movie.showtimes.map((showtime) => (
                   <Link
-                    key={idx}
-                    to={`/booking/${movie.slug}?showtime=${encodeURIComponent(
-                      time
-                    )}`}
+                    key={showtime.id}
+                    to={`/booking/${movie.slug}?showtime=${showtime.id}`}
                     className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600 transition"
                   >
-                    {time}
+                    {new Date(showtime.startsAt).toLocaleString(undefined, {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
                   </Link>
                 ))}
               </div>

@@ -1,39 +1,48 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from decimal import Decimal
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
 
+from .email_utils import (
+    send_password_reset_email,
+    send_profile_change_notification,
+    send_promotion_email_to_subscribers,
+    send_verification_email,
+    send_welcome_email,
+)
 from .models import (
+    Booking,
+    Customer,
     Movie,
     MovieRoom,
     PaymentCard,
     Promotion,
-    Showroom,
+    Seat,
     Showtime,
+    Showroom,
+    Ticket,
     UserProfile,
 )
 from .serializers import (
-    MovieSerializer,
+    BookingSerializer,
     MovieRoomSerializer,
-    UserRegistrationSerializer,
-    UserSerializer,
+    MovieSerializer,
+    PasswordChangeSerializer,
     PaymentCardSerializer,
     ProfileUpdateSerializer,
-    PasswordChangeSerializer,
     PromotionSerializer,
-    ShowroomSerializer,
+    SeatSerializer,
     ShowtimeSerializer,
-)
-from .email_utils import (
-    send_verification_email,
-    send_password_reset_email,
-    send_profile_change_notification,
-    send_welcome_email,
-    send_promotion_email_to_subscribers,
+    ShowroomSerializer,
+    TicketSerializer,
+    UserRegistrationSerializer,
+    UserSerializer,
 )
 
 
@@ -326,7 +335,6 @@ def payment_card_detail(request, card_id):
     card.delete()
     return Response({"message": "Payment card deleted successfully"}, status=status.HTTP_200_OK)
 
-
 # ---------------------------------------------------------
 # ------------------ Admin Panel Views -------------------
 # ---------------------------------------------------------
@@ -393,3 +401,171 @@ class UserAdminViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return super().destroy(request, *args, **kwargs)
+
+# ---------------------------------------------------------
+# Showtime viewset
+# ---------------------------------------------------------
+class ShowtimeViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Showtime.objects.all().select_related("movie", "movie_room")
+    serializer_class = ShowtimeSerializer
+
+    @action(detail=True, methods=["get"])
+    def seats(self, request, pk=None):
+        """
+        Returns seat availability for the showtime:
+        available, reserved, etc.
+        """
+        showtime = self.get_object()
+        seats_qs = Seat.objects.filter(movie_room=showtime.movie_room)
+
+        # Auto-create a simple seat map if this room has no seats yet.
+        if not seats_qs.exists():
+            bulk = []
+            rows = [chr(c) for c in range(ord("A"), ord("H") + 1)]  # A-H
+            for row in rows:
+                for num in range(1, 13):  # 12 seats per row
+                    bulk.append(Seat(movie_room=showtime.movie_room, row=row, number=num))
+            Seat.objects.bulk_create(bulk)
+            seats_qs = Seat.objects.filter(movie_room=showtime.movie_room)
+
+        reserved_seats = Ticket.objects.filter(showtime=showtime).values_list("seat_id", flat=True)
+
+        data = []
+        for seat in seats_qs:
+            data.append({
+                "id": seat.id,
+                "row": seat.row,
+                "number": seat.number,
+                "isReserved": seat.id in reserved_seats
+            })
+
+        return Response(data, status=200)
+
+
+# ---------------------------------------------------------
+# BOOKING VIEWSET
+# ---------------------------------------------------------
+class BookingViewSet(viewsets.ModelViewSet):
+    queryset = Booking.objects.all()
+    serializer_class = BookingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        """
+        Create booking for a user and generate corresponding tickets.
+        """
+        user = request.user
+        customer, _ = Customer.objects.get_or_create(user=user)
+
+        showtime_id = request.data.get("showtime")
+        seat_payload = request.data.get("seats", [])
+        payment_method = request.data.get("payment_method")
+        payment_last4 = request.data.get("payment_last4")
+        payment_card_id = request.data.get("payment_card_id")
+
+        if not showtime_id or not seat_payload:
+            return Response({"error": "showtime and seats are required"}, status=400)
+
+        # If client provides a saved card, trust it as the payment method
+        if payment_card_id:
+            try:
+                card = PaymentCard.objects.get(id=payment_card_id, user=user)
+                payment_method = payment_method or "saved-card"
+                try:
+                    payment_last4 = card.card_number[-4:]
+                except Exception:
+                    payment_last4 = None
+            except PaymentCard.DoesNotExist:
+                return Response({"error": "Payment card not found"}, status=404)
+
+        if not payment_method:
+            return Response({"error": "payment_method is required"}, status=400)
+        # payment_last4 is optional, used only for display
+
+        showtime = get_object_or_404(Showtime, pk=showtime_id)
+
+        # Normalize seats payload into {seat_id: ticket_type}
+        seat_type_map = {}
+        seat_ids = []
+        for item in seat_payload:
+            if isinstance(item, dict):
+                sid = item.get("seat") or item.get("id")
+                ticket_type = item.get("ticket_type") or item.get("type") or Ticket.TicketType.ADULT
+            else:
+                sid = item
+                ticket_type = Ticket.TicketType.ADULT
+
+            try:
+                sid_int = int(sid)
+            except (TypeError, ValueError):
+                return Response({"error": "Invalid seat id provided"}, status=400)
+
+            ticket_type = str(ticket_type).upper()
+            if ticket_type not in Ticket.TicketType.values:
+                return Response({"error": f"Invalid ticket_type for seat {sid_int}"}, status=400)
+
+            seat_type_map[sid_int] = ticket_type
+            seat_ids.append(sid_int)
+
+        seats = Seat.objects.filter(id__in=seat_ids, movie_room=showtime.movie_room).order_by("id")
+        if seats.count() != len(seat_ids):
+            return Response({"error": "Invalid seat selection"}, status=400)
+
+        with transaction.atomic():
+            # Lock existing tickets for these seats/showtime to avoid race conditions
+            existing_tickets = (
+                Ticket.objects.select_for_update()
+                .filter(showtime=showtime, seat__in=seats)
+            )
+            if existing_tickets.exists():
+                return Response({"error": "One or more seats are already booked"}, status=409)
+
+            booking = Booking.objects.create(customer=customer, total_amount=0)
+
+            multipliers = {
+                Ticket.TicketType.ADULT: Decimal("1.0"),
+                Ticket.TicketType.STUDENT: Decimal("0.90"),
+                Ticket.TicketType.CHILD: Decimal("0.80"),
+                Ticket.TicketType.SENIOR: Decimal("0.85"),
+            }
+
+            total_price = Decimal("0")
+            created_tickets = []
+
+            for seat in seats:
+                ticket_type = seat_type_map.get(seat.id, Ticket.TicketType.ADULT)
+                ticket_price = Decimal(showtime.base_price) * multipliers.get(ticket_type, Decimal("1.0"))
+                ticket = Ticket.objects.create(
+                    booking=booking,
+                    showtime=showtime,
+                    seat=seat,
+                    price=ticket_price,
+                    ticket_type=ticket_type
+                )
+                total_price += ticket_price
+                created_tickets.append(ticket)
+
+            booking.total_amount = total_price
+            booking.status = Booking.Status.CONFIRMED
+            booking.save()
+
+        return Response(
+            {
+                "booking": BookingSerializer(booking).data,
+                "tickets": TicketSerializer(created_tickets, many=True).data,
+                "payment": {"method": payment_method, "card_last4": payment_last4},
+            },
+            status=201
+        )
+
+    @action(detail=False, methods=["get"])
+    def my(self, request):
+        """Return bookings belonging to logged-in user."""
+        user = request.user
+        customer = getattr(user, "customer_profile", None)
+
+        if not customer:
+            return Response({"error": "Customer profile missing"}, status=400)
+
+        bookings = Booking.objects.filter(customer=customer).order_by("-created_at")
+        return Response(BookingSerializer(bookings, many=True).data, status=200)

@@ -1,6 +1,15 @@
 // TypeScript interfaces for our movie data.
 // These ensure we don’t make mistakes with missing properties or wrong data types.
 
+export interface MovieShowtime {
+    id: number;
+    startsAt: string; // ISO string
+    format?: string;
+    movieRoom?: number;
+    movieRoomName?: string | null;
+    basePrice?: number;
+}
+
 // Main movie interface - every movie object must have all these properties
 export interface Movie {
     id: number; // unique number for each movie
@@ -15,7 +24,7 @@ export interface Movie {
     // 🎥 NEW: YouTube trailer video ID (instead of full URL)
     trailerId?: string;
 
-    showtimes: string[]; // times when the movie plays (e.g., "2:00 PM", "5:30 PM")
+    showtimes: MovieShowtime[]; // times when the movie plays
     category: 'currently-running' | 'coming-soon'; // theater status
 
     // Added fields
