@@ -72,7 +72,8 @@ export async function fetchShowtimeSeats(id: number) {
 export async function createBooking(
   showtimeId: number,
   seats: { seat: number; ticket_type: string }[],
-  payment: { method: string; card_last4?: string; card_id?: number }
+  payment: { method: string; card_last4?: string; card_id?: number },
+  promoCode?: string
 ) {
   const csrf = getCookie("csrftoken");
   const res = await fetch(`${API_URL}/bookings/`, {
@@ -88,6 +89,7 @@ export async function createBooking(
       payment_method: payment.method,
       payment_last4: payment.card_last4,
       payment_card_id: payment.card_id,
+      promo_code: promoCode || undefined,
     }),
   });
 
@@ -113,5 +115,36 @@ export async function createBooking(
 export async function fetchMyBookings() {
   const res = await fetch(`${API_URL}/bookings/my/`, { credentials: "include" });
   if (!res.ok) throw new Error("Failed to load bookings");
+  return res.json();
+}
+
+export async function validatePromoCode(code: string) {
+  const csrf = getCookie("csrftoken");
+  const res = await fetch(`${API_URL}/promotions/validate/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(csrf ? { "X-CSRFToken": csrf } : {}),
+    },
+    credentials: "include",
+    body: JSON.stringify({ promo_code: code }),
+  });
+
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      const error = await res.json();
+      message =
+        error.error ||
+        error.detail ||
+        error.message ||
+        JSON.stringify(error);
+    } catch {
+      const text = await res.text().catch(() => "");
+      if (text) message = text;
+    }
+    throw new Error(message || "Invalid promo code");
+  }
+
   return res.json();
 }

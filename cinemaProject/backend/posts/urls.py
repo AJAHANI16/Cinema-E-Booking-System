@@ -24,6 +24,7 @@ from .views import (
     MovieRoomAdminViewSet,
     ShowtimeViewSet,
     BookingViewSet,
+    validate_promo_code,
 )
 
 router = DefaultRouter()
@@ -71,4 +72,9 @@ urlpatterns = [
     # ---------------------------------------------------------
     path("auth/payment-cards/", payment_cards, name="payment_cards"),
     path("auth/payment-cards/<int:card_id>/", payment_card_detail, name="payment_card_detail"),
+
+    # ---------------------------------------------------------
+    # Promotions (public checkout validation)
+    # ---------------------------------------------------------
+    path("promotions/validate/", validate_promo_code, name="validate_promo_code"),
 ]

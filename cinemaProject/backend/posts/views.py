@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
@@ -127,6 +127,34 @@ def login_user(request):
 def logout_user(request):
     logout(request)
     return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def validate_promo_code(request):
+    """Validate a promotion code before checkout."""
+    code = str(request.data.get("promo_code", "")).strip()
+    if not code:
+        return Response({"error": "promo_code is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        promo = Promotion.objects.get(promo_code__iexact=code)
+    except Promotion.DoesNotExist:
+        return Response({"error": "Promo code not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if not promo.is_active():
+        return Response({"error": "Promo code is expired or inactive"}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(
+        {
+            "promo_code": promo.promo_code,
+            "discount_percent": promo.discount_percent,
+            "start_date": promo.start_date,
+            "end_date": promo.end_date,
+            "description": promo.description,
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
 # ---------------------------------------------------------
@@ -462,6 +490,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         payment_method = request.data.get("payment_method")
         payment_last4 = request.data.get("payment_last4")
         payment_card_id = request.data.get("payment_card_id")
+        promo_code = str(request.data.get("promo_code") or "").strip()
 
         if not showtime_id or not seat_payload:
             return Response({"error": "showtime and seats are required"}, status=400)
@@ -483,6 +512,17 @@ class BookingViewSet(viewsets.ModelViewSet):
         # payment_last4 is optional, used only for display
 
         showtime = get_object_or_404(Showtime, pk=showtime_id)
+
+        # Optional promotion validation
+        promo = None
+        if promo_code:
+            try:
+                promo = Promotion.objects.get(promo_code__iexact=promo_code)
+            except Promotion.DoesNotExist:
+                return Response({"error": "Promo code not found"}, status=404)
+
+            if not promo.is_active():
+                return Response({"error": "Promo code is expired or inactive"}, status=400)
 
         # Normalize seats payload into {seat_id: ticket_type}
         seat_type_map = {}
@@ -545,15 +585,36 @@ class BookingViewSet(viewsets.ModelViewSet):
                 total_price += ticket_price
                 created_tickets.append(ticket)
 
+            total_before_discount = total_price
+            discount_amount = Decimal("0")
+
+            if promo:
+                discount_amount = (
+                    total_before_discount * Decimal(promo.discount_percent) / Decimal("100")
+                ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                total_price = max(Decimal("0.00"), total_before_discount - discount_amount)
+                booking.promo_code = promo.promo_code
+
             booking.total_amount = total_price
             booking.status = Booking.Status.CONFIRMED
             booking.save()
+
+        pricing = {
+            "total_before_discount": str(total_before_discount),
+            "discount_amount": str(discount_amount),
+            "total_after_discount": str(total_price),
+        }
+
+        if promo:
+            pricing["promo_code"] = promo.promo_code
+            pricing["discount_percent"] = str(promo.discount_percent)
 
         return Response(
             {
                 "booking": BookingSerializer(booking).data,
                 "tickets": TicketSerializer(created_tickets, many=True).data,
                 "payment": {"method": payment_method, "card_last4": payment_last4},
+                "pricing": pricing,
             },
             status=201
         )

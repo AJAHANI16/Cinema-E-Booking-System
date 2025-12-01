@@ -6,7 +6,7 @@ import {
 } from "react-router-dom";
 import type { Movie } from "../types/Movie";
 import { useEffect, useState } from "react";
-import { fetchShowtimeSeats, createBooking } from "../data/api";
+import { fetchShowtimeSeats, createBooking, validatePromoCode } from "../data/api";
 import { listCards, type PaymentCard } from "../data/auth";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -43,6 +43,10 @@ const BookingPage = ({ movies }: BookingPageProps) => {
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountPercent: number } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
 
   // Load saved cards
   useEffect(() => {
@@ -89,6 +93,58 @@ const BookingPage = ({ movies }: BookingPageProps) => {
     });
   };
 
+  const calculateTotals = () => {
+    if (!selectedShowtime) {
+      return { subtotal: 0, discount: 0, total: 0 };
+    }
+
+    const basePrice = Number(selectedShowtime.basePrice ?? 0);
+    const multipliers: Record<string, number> = {
+      ADULT: 1,
+      STUDENT: 0.9,
+      CHILD: 0.8,
+      SENIOR: 0.85,
+    };
+
+    const subtotal = selectedSeats.reduce((sum, seatId) => {
+      const ticketType = (seatTypes[seatId] || "ADULT").toUpperCase();
+      const multiplier = multipliers[ticketType] ?? 1;
+      return sum + basePrice * multiplier;
+    }, 0);
+
+    const discount = appliedPromo ? subtotal * (appliedPromo.discountPercent / 100) : 0;
+    const total = Math.max(subtotal - discount, 0);
+
+    return { subtotal, discount, total };
+  };
+
+  const handleApplyPromo = async () => {
+    const code = promoCode.trim();
+    if (!code) {
+      setPromoError("Enter a promo code to apply it.");
+      setAppliedPromo(null);
+      return;
+    }
+
+    setIsApplyingPromo(true);
+    setPromoError(null);
+
+    try {
+      const result = await validatePromoCode(code);
+      const discountPercent = Number(result.discount_percent);
+      setAppliedPromo({
+        code: result.promo_code || code,
+        discountPercent: isNaN(discountPercent) ? 0 : discountPercent,
+      });
+      setPromoCode(result.promo_code || code);
+    } catch (err: any) {
+      setAppliedPromo(null);
+      setPromoError(err?.message || "Promo code is invalid.");
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  };
+
   // Handle booking
   const handleBooking = async () => {
     if (!selectedShowtime) return;
@@ -115,6 +171,7 @@ const BookingPage = ({ movies }: BookingPageProps) => {
       seat: id,
       ticket_type: seatTypes[id] || "ADULT",
     }));
+    const promoToSend = appliedPromo?.code;
 
     try {
       const result = await createBooking(
@@ -124,7 +181,8 @@ const BookingPage = ({ movies }: BookingPageProps) => {
           method: usingSavedCard ? "saved-card" : "card",
           card_last4: last4,
           card_id: usingSavedCard ? selectedCardId ?? undefined : undefined,
-        }
+        },
+        promoToSend
       );
       console.log("Booking success:", result);
 
@@ -184,6 +242,8 @@ const BookingPage = ({ movies }: BookingPageProps) => {
       ? startsAt
       : date.toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
   };
+
+  const { subtotal, discount, total } = calculateTotals();
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -349,6 +409,80 @@ const BookingPage = ({ movies }: BookingPageProps) => {
                 </div>
               </div>
             )}
+
+            {/* Promo code */}
+            <div className="bg-white border rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Promotions
+              </h3>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setPromoCode(value);
+                    setPromoError(null);
+                    if (appliedPromo && appliedPromo.code !== value.trim()) {
+                      setAppliedPromo(null);
+                    }
+                  }}
+                  className="flex-1 border rounded px-3 py-2"
+                  placeholder="Enter promo code"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyPromo}
+                  disabled={isApplyingPromo || !promoCode.trim()}
+                  className={`px-4 py-2 rounded text-white ${
+                    isApplyingPromo || !promoCode.trim()
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {isApplyingPromo ? "Checking..." : appliedPromo ? "Re-apply" : "Apply"}
+                </button>
+              </div>
+              {appliedPromo && (
+                <p className="text-green-600 text-sm mt-2">
+                  Promo <strong>{appliedPromo.code}</strong> applied for {appliedPromo.discountPercent}% off.
+                </p>
+              )}
+              {promoError && <p className="text-red-600 text-sm mt-2">{promoError}</p>}
+              <p className="text-xs text-gray-500 mt-2">
+                Promo codes must be active and within their start/end dates.
+              </p>
+            </div>
+
+            {/* Order summary */}
+            <div className="bg-white border rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Order Summary
+              </h3>
+              {!selectedShowtime ? (
+                <p className="text-gray-600 text-sm">Choose a showtime to see pricing.</p>
+              ) : (
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between text-gray-700">
+                    <span>Subtotal</span>
+                    <span>${subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-700">
+                    <span>Promo</span>
+                    <span className={discount > 0 ? "text-green-600" : "text-gray-500"}>
+                      {discount > 0 ? `- $${discount.toFixed(2)}` : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-gray-900 border-t pt-2">
+                    <span>Total</span>
+                    <span>${total.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-gray-500 mt-2">
+                Totals are calculated from the showtime base price and ticket type multipliers.
+              </p>
+            </div>
 
             {/* Payment */}
             <div className="bg-white border rounded-lg p-4">
