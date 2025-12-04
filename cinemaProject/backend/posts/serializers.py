@@ -87,7 +87,7 @@ class UserSerializer(serializers.ModelSerializer):
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
-    subscribed_to_promotions = serializers.BooleanField(default=False, write_only=True)
+    subscribed_to_promotions = serializers.BooleanField(default=True, write_only=True)
 
     class Meta:
         model = User
@@ -113,16 +113,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop("password_confirm")
-        subscribed = validated_data.pop("subscribed_to_promotions", False)
+        subscribed = validated_data.pop("subscribed_to_promotions", True)
 
         user = User.objects.create_user(**validated_data)
         user.is_active = False
         user.save()
 
-        UserProfile.objects.get_or_create(
-            user=user,
-            defaults={"subscribed_to_promotions": subscribed}
-        )
+        # Ensure the UserProfile exists (signals may have already created it)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.subscribed_to_promotions = subscribed
+        profile.save()
 
         return user
 

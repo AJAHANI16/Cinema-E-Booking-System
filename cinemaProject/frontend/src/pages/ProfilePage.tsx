@@ -1,5 +1,6 @@
 // src/pages/ProfilePage.tsx
 import {useEffect, useState} from "react";
+import {useNavigate} from "react-router-dom";
 import {getUserProfile, updateProfile, changePassword} from "../data/auth";
 import PaymentCards from "../sections/PaymentCards";
 
@@ -18,6 +19,8 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState<string | null>(null);
     const [msg, setMsg] = useState<string | null>(null);
+
+    const navigate = useNavigate();
 
     const [form, setForm] = useState<UserProfileData>({
         first_name: "",
@@ -38,19 +41,48 @@ export default function ProfilePage() {
                 if (!mounted) return;
 
                 const u = data.user as unknown as Record<string, unknown>;
+                const profile = (u.profile ?? {}) as Record<string, unknown>;
 
                 setForm({
                     first_name: String(u.first_name ?? ""),
                     last_name: String(u.last_name ?? ""),
-                    street_address: String(u.street_address ?? ""),
-                    city: String(u.city ?? ""),
-                    state: String(u.state ?? ""),
-                    zip_code: String(u.zip_code ?? ""),
-                    subscribed_to_promotions: Boolean(u.subscribed_to_promotions),
+                    street_address: String(profile.street_address ?? ""),
+                    city: String(profile.city ?? ""),
+                    state: String(profile.state ?? ""),
+                    zip_code: String(profile.zip_code ?? ""),
+                    subscribed_to_promotions: Boolean(
+                        typeof profile.subscribed_to_promotions === "boolean"
+                            ? profile.subscribed_to_promotions
+                            : false
+                    ),
                     email: String(u.email ?? ""),
                 });
             } catch (e) {
-                setErr(e instanceof Error ? e.message : "Failed to load profile");
+                if (!mounted) return;
+
+                const message = e instanceof Error ? e.message : String(e);
+                const status =
+                    typeof e === "object" && e !== null && "status" in e
+                        ? (e as any).status
+                        : undefined;
+                const responseStatus =
+                    typeof e === "object" && e !== null && "response" in e
+                        ? (e as any).response?.status
+                        : undefined;
+
+                const unauthorized =
+                    status === 401 ||
+                    responseStatus === 401 ||
+                    /\b401\b|unauthori[sz]ed|not authenticated|login required|invalid token/i.test(
+                        message
+                    );
+
+                if (unauthorized) {
+                    navigate("/login", {replace: true});
+                    return;
+                }
+
+                setErr(message || "Failed to load profile");
             } finally {
                 setLoading(false);
             }

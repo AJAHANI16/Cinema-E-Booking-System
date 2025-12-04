@@ -54,7 +54,7 @@ class UserProfile(models.Model):
     zip_code = models.CharField(max_length=20, blank=True)
 
     # Promotions
-    subscribed_to_promotions = models.BooleanField(default=False)
+    subscribed_to_promotions = models.BooleanField(default=True)
 
     # Verification
     is_verified = models.BooleanField(default=False)

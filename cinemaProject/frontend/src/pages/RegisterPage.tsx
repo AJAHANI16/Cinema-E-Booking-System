@@ -14,7 +14,7 @@ export default function RegisterPage() {
     email: "",
     password: "",
     password_confirm: "",
-    subscribed_to_promotions: false,
+    subscribed_to_promotions: true,
   });
 
   const [err, setErr] = useState<string | null>(null);

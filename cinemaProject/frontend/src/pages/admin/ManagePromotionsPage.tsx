@@ -17,6 +17,8 @@ const ManagePromotionsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingPromotion, setEditingPromotion] = useState<PromotionRow | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const formatDate = (value: string) => {
     const date = new Date(value);
@@ -71,6 +73,54 @@ const ManagePromotionsPage: React.FC = () => {
       console.error("Error deleting promotion:", err);
       setError(extractErrorMessage(err));
       setFeedback(null);
+    }
+  };
+
+  const startEdit = (promo: PromotionRow) => {
+    setEditingPromotion({ ...promo });
+    setError(null);
+    setFeedback(null);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPromotion) return;
+
+    const discountValue = Number(editingPromotion.discountPercent);
+    if (!Number.isFinite(discountValue) || discountValue <= 0) {
+      setError("Discount must be greater than 0.");
+      return;
+    }
+    if (new Date(editingPromotion.startDate) > new Date(editingPromotion.endDate)) {
+      setError("End date must be after the start date.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      const payload = {
+        promo_code: editingPromotion.code,
+        description: editingPromotion.description,
+        discount_percent: discountValue,
+        start_date: editingPromotion.startDate,
+        end_date: editingPromotion.endDate,
+      };
+
+      await http.patch(`/admin/promotions/${editingPromotion.id}/`, payload);
+
+      setPromotions((prev) =>
+        prev.map((p) => (p.id === editingPromotion.id ? { ...editingPromotion } : p))
+      );
+      setFeedback("Promotion updated successfully.");
+      setEditingPromotion(null);
+    } catch (err) {
+      console.error("Error updating promotion:", err);
+      setError(extractErrorMessage(err));
+      setFeedback(null);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -143,8 +193,8 @@ const ManagePromotionsPage: React.FC = () => {
                       >
                         Delete
                       </button>
-                      {/* Future: Edit button */}
                       <button
+                        onClick={() => startEdit(promo)}
                         className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
                       >
                         Edit
@@ -156,6 +206,115 @@ const ManagePromotionsPage: React.FC = () => {
             </table>
           )}
         </div>
+
+        {editingPromotion && (
+          <div className="mt-8 bg-white shadow-md rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-4">
+              Edit Promotion (ID: {editingPromotion.id})
+            </h2>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block font-medium mb-1">Promo Code</label>
+                <input
+                  type="text"
+                  value={editingPromotion.code}
+                  onChange={(e) =>
+                    setEditingPromotion((prev) =>
+                      prev ? { ...prev, code: e.target.value } : prev
+                    )
+                  }
+                  required
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium mb-1">Description</label>
+                <textarea
+                  value={editingPromotion.description}
+                  onChange={(e) =>
+                    setEditingPromotion((prev) =>
+                      prev ? { ...prev, description: e.target.value } : prev
+                    )
+                  }
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium mb-1">Discount (%)</label>
+                <input
+                  type="number"
+                  value={editingPromotion.discountPercent}
+                  onChange={(e) =>
+                    setEditingPromotion((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            discountPercent:
+                              e.target.value === ""
+                                ? 0
+                                : Number(e.target.value),
+                          }
+                        : prev
+                    )
+                  }
+                  required
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-medium mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={editingPromotion.startDate}
+                    onChange={(e) =>
+                      setEditingPromotion((prev) =>
+                        prev ? { ...prev, startDate: e.target.value } : prev
+                      )
+                    }
+                    required
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={editingPromotion.endDate}
+                    onChange={(e) =>
+                      setEditingPromotion((prev) =>
+                        prev ? { ...prev, endDate: e.target.value } : prev
+                      )
+                    }
+                    required
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-6 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 transition disabled:opacity-60"
+                >
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingPromotion(null)}
+                  className="px-6 py-2 bg-gray-300 text-gray-800 font-semibold rounded hover:bg-gray-400 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );

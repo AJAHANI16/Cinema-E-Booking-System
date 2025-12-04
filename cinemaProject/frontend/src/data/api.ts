@@ -114,7 +114,21 @@ export async function createBooking(
 
 export async function fetchMyBookings() {
   const res = await fetch(`${API_URL}/bookings/my/`, { credentials: "include" });
-  if (!res.ok) throw new Error("Failed to load bookings");
+  if (!res.ok) {
+    let message = "Failed to load bookings";
+    try {
+      const error = await res.json();
+      message =
+        error.error ||
+        error.detail ||
+        error.message ||
+        JSON.stringify(error);
+    } catch {
+      const text = await res.text().catch(() => "");
+      if (text) message = text;
+    }
+    throw new Error(message);
+  }
   return res.json();
 }
 

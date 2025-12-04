@@ -419,7 +419,8 @@ class UserAdminViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by("id")
     serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
-    http_method_names = ["get", "delete"]
+    # Allow admins to list, retrieve, update, and delete users
+    http_method_names = ["get", "patch", "put", "delete"]
 
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()
@@ -625,8 +626,12 @@ class BookingViewSet(viewsets.ModelViewSet):
         user = request.user
         customer = getattr(user, "customer_profile", None)
 
+        # Auto-create customer profile if it doesn't exist
         if not customer:
-            return Response({"error": "Customer profile missing"}, status=400)
+            customer, created = Customer.objects.get_or_create(user=user)
+            if created:
+                # No bookings yet for a new customer
+                return Response([], status=200)
 
         bookings = Booking.objects.filter(customer=customer).order_by("-created_at")
         return Response(BookingSerializer(bookings, many=True).data, status=200)

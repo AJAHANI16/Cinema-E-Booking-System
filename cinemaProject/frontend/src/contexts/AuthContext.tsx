@@ -110,7 +110,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Login
   const login = async (loginData: LoginData) => {
     try {
-      dispatch({ type: "SET_LOADING", payload: true });
+      // Do not toggle global isLoading here; it would unmount pages like LoginPage.
       dispatch({ type: "CLEAR_ERROR" });
       const response = await loginUser(loginData);
       dispatch({ type: "SET_USER", payload: response.user });
@@ -119,14 +119,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const message =
         error instanceof Error ? error.message : "Login failed. Try again.";
       dispatch({ type: "SET_ERROR", payload: message });
-      throw error;
+      // Always rethrow a proper Error so callers (e.g. LoginPage) can display the message
+      throw new Error(message);
     }
   };
 
   // Register
   const register = async (registerData: RegisterData) => {
     try {
-      dispatch({ type: "SET_LOADING", payload: true });
+      // Do not toggle global isLoading here either.
       dispatch({ type: "CLEAR_ERROR" });
       const response = await registerUser(registerData);
       dispatch({ type: "SET_USER", payload: response.user });

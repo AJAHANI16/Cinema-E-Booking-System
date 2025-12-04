@@ -15,6 +15,8 @@ const ManageUsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -43,6 +45,38 @@ const ManageUsersPage: React.FC = () => {
     } catch (err) {
       console.error("Error deleting user:", err);
       setError(extractErrorMessage(err));
+    }
+  };
+
+  const startEdit = (user: User) => {
+    setEditingUser({ ...user });
+    setError(null);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      const payload = {
+        email: editingUser.email,
+        is_staff: editingUser.is_staff,
+      };
+
+      await http.patch(`/admin/users/${editingUser.id}/`, payload);
+
+      setUsers((prev) =>
+        prev.map((u) => (u.id === editingUser.id ? { ...editingUser } : u))
+      );
+      setEditingUser(null);
+    } catch (err) {
+      console.error("Error updating user:", err);
+      setError(extractErrorMessage(err));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -88,8 +122,8 @@ const ManageUsersPage: React.FC = () => {
                       >
                         Delete
                       </button>
-                      {/* Future: Edit button */}
                       <button
+                        onClick={() => startEdit(user)}
                         className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
                       >
                         Edit
@@ -101,6 +135,71 @@ const ManageUsersPage: React.FC = () => {
             </table>
           )}
         </div>
+
+        {editingUser && (
+          <div className="mt-8 bg-white shadow-md rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-4">
+              Edit User (ID: {editingUser.id})
+            </h2>
+            <form onSubmit={handleEditSubmit} className="space-y-4 max-w-md">
+              <div>
+                <label className="block font-medium mb-1">Username</label>
+                <input
+                  type="text"
+                  value={editingUser.username}
+                  readOnly
+                  className="w-full border border-gray-300 rounded px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium mb-1">Email</label>
+                <input
+                  type="email"
+                  value={editingUser.email}
+                  onChange={(e) =>
+                    setEditingUser((prev) =>
+                      prev ? { ...prev, email: e.target.value } : prev
+                    )
+                  }
+                  required
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={editingUser.is_staff}
+                  onChange={(e) =>
+                    setEditingUser((prev) =>
+                      prev ? { ...prev, is_staff: e.target.checked } : prev
+                    )
+                  }
+                  className="accent-blue-600"
+                />
+                Staff user (can access admin features)
+              </label>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-6 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 transition disabled:opacity-60"
+                >
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="px-6 py-2 bg-gray-300 text-gray-800 font-semibold rounded hover:bg-gray-400 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );
