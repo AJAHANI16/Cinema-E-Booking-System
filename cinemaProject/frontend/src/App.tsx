@@ -11,8 +11,20 @@ import RegisterPage from "./pages/RegisterPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ProfilePage from "./pages/ProfilePage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import MyTicketsPage from "./pages/MyTicketsPage";
 import type { Movie } from "./types/Movie";
 import { fetchMovies } from "./data/api";
+
+// Admin Pages
+import AdminPage from "./pages/admin/AdminPage";
+import AddMoviePage from "./pages/admin/AddMoviePage";
+import AddPromotionPage from "./pages/admin/AddPromotionPage";
+import AddShowtimePage from "./pages/admin/AddShowtimePage";
+import ManageUsersPage from "./pages/admin/ManageUsersPage";
+import ManageMoviesPage from "./pages/admin/ManageMoviesPage";
+import ManagePromotionsPage from "./pages/admin/ManagePromotionsPage";
+import ManageShowtimesPage from "./pages/admin/ManageShowtimesPage";
+
 
 function AppContent() {
   const location = useLocation();
@@ -48,8 +60,28 @@ function AppContent() {
                 ""
             ),
             showtimes: Array.isArray(movie.showtimes)
-              ? (movie.showtimes as string[])
-              : ["2:00 PM", "5:00 PM", "8:00 PM"],
+              ? (movie.showtimes as any[]).map((s) => ({
+                  id: Number((s as any).id ?? 0),
+                  startsAt: String(
+                    (s as any).startsAt ??
+                      (s as any).starts_at ??
+                      ""
+                  ),
+                  format: (s as any).format ?? undefined,
+                  movieRoom:
+                    (s as any).movieRoom ??
+                    (s as any).movie_room ??
+                    undefined,
+                  movieRoomName:
+                    (s as any).movieRoomName ??
+                    (s as any).movie_room_name ??
+                    null,
+                  basePrice:
+                    (s as any).basePrice ??
+                    (s as any).base_price ??
+                    undefined,
+                }))
+              : [],
             category:
               (movie.category as "currently-running" | "coming-soon") ??
               "currently-running",
@@ -103,6 +135,7 @@ function AppContent() {
         <Route path="/" element={<HomePage movies={filteredMovies} />} />
         <Route path="/movie/:slug" element={<MovieDetailsPage movies={movies} />} />
         <Route path="/booking/:slug" element={<BookingPage movies={movies} />} />
+        <Route path="/my-tickets" element={<MyTicketsPage />} />
 
         {/* Auth Routes */}
         <Route path="/login" element={<LoginPage />} />
@@ -112,6 +145,16 @@ function AppContent() {
 
         {/* User Profile */}
         <Route path="/profile" element={<ProfilePage />} />
+
+        {/* Admin Routes */}
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin/manage-users" element={<ManageUsersPage />} />
+        <Route path="/admin/manage-movies" element={<ManageMoviesPage />} />
+        <Route path="/admin/manage-promotions" element={<ManagePromotionsPage />} />
+        <Route path="/admin/manage-showtimes" element={<ManageShowtimesPage />} />
+        <Route path="/admin/add-movie" element={<AddMoviePage />} />
+        <Route path="/admin/add-promotion" element={<AddPromotionPage />} />
+        <Route path="/admin/add-showtime" element={<AddShowtimePage />} />
       </Routes>
     </div>
   );

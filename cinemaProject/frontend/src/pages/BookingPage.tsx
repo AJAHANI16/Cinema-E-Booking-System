@@ -1,17 +1,196 @@
-import { useParams, useSearchParams, Link } from "react-router-dom";
+import {
+  useParams,
+  useSearchParams,
+  Link,
+  useNavigate,
+} from "react-router-dom";
 import type { Movie } from "../types/Movie";
+import { useEffect, useState } from "react";
+import { fetchShowtimeSeats, createBooking, validatePromoCode } from "../data/api";
+import { listCards, type PaymentCard } from "../data/auth";
+import { useAuth } from "../contexts/AuthContext";
 
 interface BookingPageProps {
   movies: Movie[];
 }
 
 const BookingPage = ({ movies }: BookingPageProps) => {
-  const { slug } = useParams<{ slug: string }>(); // use slug instead of id
-  const [searchParams] = useSearchParams();
-  const showtime = searchParams.get("showtime");
+  const { slug } = useParams<{ slug: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
-  // find movie by slug instead of numeric ID
+  const showtimeParam = searchParams.get("showtime");
+
   const movie = movies.find((m) => m.slug === slug);
+
+  const selectedShowtime = movie?.showtimes.find((s) => {
+    return (
+      String(s.id) === showtimeParam ||
+      s.startsAt === showtimeParam ||
+      (s as any).starts_at === showtimeParam
+    );
+  });
+
+  // Seat selection state
+  const [seats, setSeats] = useState<any[]>([]);
+  const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
+  const [seatTypes, setSeatTypes] = useState<Record<number, string>>({});
+  const [loadingSeats, setLoadingSeats] = useState(true);
+  const [savedCards, setSavedCards] = useState<PaymentCard[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
+  const [cardName, setCardName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountPercent: number } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+
+  // Load saved cards
+  useEffect(() => {
+    const loadCards = async () => {
+      if (!isAuthenticated) return;
+      try {
+        const cards = await listCards();
+        setSavedCards(cards);
+        if (cards.length > 0) setSelectedCardId(cards[0].id);
+      } catch (e) {
+        console.error("Failed to load cards", e);
+      }
+    };
+    loadCards();
+  }, [isAuthenticated]);
+
+  // Load seats for showtime
+  useEffect(() => {
+    if (!selectedShowtime || !isAuthenticated) return;
+
+    setLoadingSeats(true);
+    fetchShowtimeSeats(Number(selectedShowtime.id))
+      .then((data) => setSeats(data))
+      .finally(() => setLoadingSeats(false));
+  }, [selectedShowtime, isAuthenticated]);
+
+  const toggleSeat = (seatId: number) => {
+    setSelectedSeats((prev) => {
+      const exists = prev.includes(seatId);
+      const next = exists ? prev.filter((id) => id !== seatId) : [...prev, seatId];
+
+      // default to ADULT when adding; remove type when removing
+      setSeatTypes((current) => {
+        const copy = { ...current };
+        if (exists) {
+          delete copy[seatId];
+        } else {
+          copy[seatId] = copy[seatId] || "ADULT";
+        }
+        return copy;
+      });
+
+      return next;
+    });
+  };
+
+  const calculateTotals = () => {
+    if (!selectedShowtime) {
+      return { subtotal: 0, discount: 0, total: 0 };
+    }
+
+    const basePrice = Number(selectedShowtime.basePrice ?? 0);
+    const multipliers: Record<string, number> = {
+      ADULT: 1,
+      STUDENT: 0.9,
+      CHILD: 0.8,
+      SENIOR: 0.85,
+    };
+
+    const subtotal = selectedSeats.reduce((sum, seatId) => {
+      const ticketType = (seatTypes[seatId] || "ADULT").toUpperCase();
+      const multiplier = multipliers[ticketType] ?? 1;
+      return sum + basePrice * multiplier;
+    }, 0);
+
+    const discount = appliedPromo ? subtotal * (appliedPromo.discountPercent / 100) : 0;
+    const total = Math.max(subtotal - discount, 0);
+
+    return { subtotal, discount, total };
+  };
+
+  const handleApplyPromo = async () => {
+    const code = promoCode.trim();
+    if (!code) {
+      setPromoError("Enter a promo code to apply it.");
+      setAppliedPromo(null);
+      return;
+    }
+
+    setIsApplyingPromo(true);
+    setPromoError(null);
+
+    try {
+      const result = await validatePromoCode(code);
+      const discountPercent = Number(result.discount_percent);
+      setAppliedPromo({
+        code: result.promo_code || code,
+        discountPercent: isNaN(discountPercent) ? 0 : discountPercent,
+      });
+      setPromoCode(result.promo_code || code);
+    } catch (err: any) {
+      setAppliedPromo(null);
+      setPromoError(err?.message || "Promo code is invalid.");
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  };
+
+  // Handle booking
+  const handleBooking = async () => {
+    if (!selectedShowtime) return;
+
+    if (!isAuthenticated) {
+      alert("Please log in to book tickets.");
+      navigate("/login");
+      return;
+    }
+
+    const usingSavedCard = selectedCardId !== null;
+
+    if (!usingSavedCard) {
+      if (!cardName || !cardNumber || !cardExpiry || !cardCvc) {
+        alert("Please enter payment details or choose a saved card.");
+        return;
+      }
+    }
+
+    const last4 = usingSavedCard
+      ? savedCards.find((c) => c.id === selectedCardId)?.card_number_masked.slice(-4)
+      : cardNumber.replace(/\D/g, "").slice(-4) || undefined;
+    const seatPayload = selectedSeats.map((id) => ({
+      seat: id,
+      ticket_type: seatTypes[id] || "ADULT",
+    }));
+    const promoToSend = appliedPromo?.code;
+
+    try {
+      const result = await createBooking(
+        Number(selectedShowtime.id),
+        seatPayload,
+        {
+          method: usingSavedCard ? "saved-card" : "card",
+          card_last4: last4,
+          card_id: usingSavedCard ? selectedCardId ?? undefined : undefined,
+        },
+        promoToSend
+      );
+      console.log("Booking success:", result);
+
+      navigate("/my-tickets"); // redirect to your tickets page
+    } catch (err: any) {
+      alert(err?.message || "Booking failed. Please try again.");
+    }
+  };
 
   if (!movie) {
     return (
@@ -30,6 +209,41 @@ const BookingPage = ({ movies }: BookingPageProps) => {
       </div>
     );
   }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow p-6 text-center space-y-4">
+          <h2 className="text-xl font-semibold text-gray-800">
+            Please log in to book seats
+          </h2>
+          <div className="flex gap-3 justify-center">
+            <Link
+              to="/login"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Login
+            </Link>
+            <Link
+              to="/register"
+              className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
+            >
+              Register
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const formatShowtime = (startsAt: string) => {
+    const date = new Date(startsAt);
+    return isNaN(date.getTime())
+      ? startsAt
+      : date.toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
+  };
+
+  const { subtotal, discount, total } = calculateTotals();
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -55,138 +269,349 @@ const BookingPage = ({ movies }: BookingPageProps) => {
                   {movie.genre} • {movie.rating}
                 </p>
                 <p className="text-blue-600 font-medium">
-                  Selected Showtime: {showtime || "Not selected"}
+                  Selected Showtime:{" "}
+                  {selectedShowtime
+                    ? new Date(selectedShowtime.startsAt).toLocaleString(
+                        undefined,
+                        { dateStyle: "short", timeStyle: "short" }
+                      )
+                    : "Not selected"}
                 </p>
               </div>
             </div>
           </div>
 
+          {/* Showtime selection */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select a Showtime
+            </label>
+            {movie.showtimes.length === 0 ? (
+              <p className="text-gray-600">No showtimes available.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {movie.showtimes.map((st) => {
+                  const isActive = selectedShowtime && st.id === selectedShowtime.id;
+                  return (
+                    <button
+                      key={st.id}
+                      onClick={() => {
+                        setSearchParams({ showtime: String(st.id) });
+                        setSelectedSeats([]);
+                      }}
+                      className={`px-3 py-2 rounded border text-sm transition ${
+                        isActive
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "bg-white text-gray-800 border-gray-300 hover:border-blue-400"
+                      }`}
+                    >
+                      {formatShowtime(st.startsAt)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Booking Form */}
           <div className="space-y-6">
-            {/* Show Date Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Show Date
-              </label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Choose a date</option>
-                {movie.showDates?.map((date, index) => (
-                  <option key={index} value={date}>
-                    {new Date(date).toLocaleDateString("en-US", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Number of Tickets */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Number of Tickets
-              </label>
-              <div className="grid grid-cols-3 gap-4">
-                {[
-                  { type: "Child", price: 8 },
-                  { type: "Adult", price: 12 },
-                  { type: "Senior", price: 9 },
-                ].map(({ type, price }) => (
-                  <div key={type}>
-                    <label className="block text-sm text-gray-600 mb-1">
-                      {type}
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="10"
-                      defaultValue="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      ${price.toFixed(2)} each
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Seat Selection Placeholder */}
+            {/* Seat Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Seat Selection
               </label>
-              <div className="bg-gray-100 rounded-lg p-6 text-center">
-                <p className="text-gray-600 mb-4">🎭 Theater Screen</p>
-                <div className="grid grid-cols-8 gap-2 max-w-md mx-auto">
-                  {Array.from({ length: 32 }, (_, i) => (
-                    <button
-                      key={i}
-                      className="w-8 h-8 bg-green-200 rounded border hover:bg-green-300 text-xs"
-                      disabled
-                    >
-                      {String.fromCharCode(65 + Math.floor(i / 8))}
-                      {(i % 8) + 1}
-                    </button>
-                  ))}
+
+              {!selectedShowtime ? (
+                <p className="text-gray-600 text-center py-4">
+                  Choose a showtime to view available seats.
+                </p>
+              ) : loadingSeats ? (
+                <p className="text-gray-600 text-center py-4">
+                  Loading seats...
+                </p>
+              ) : (
+                <div className="bg-gray-100 rounded-lg p-6 text-center">
+                  <p className="text-gray-600 mb-4">🎭 Theater Screen</p>
+
+                  <div className="grid grid-cols-8 gap-2 max-w-md mx-auto">
+                    {seats.map((seat) => {
+                      const isSelected = selectedSeats.includes(
+                        seat.id
+                      );
+
+                      return (
+                        <button
+                          key={seat.id}
+                          onClick={() =>
+                            !seat.isReserved && toggleSeat(seat.id)
+                          }
+                          className={`
+                            w-8 h-8 rounded border text-xs
+                            ${
+                              seat.isReserved
+                                ? "bg-red-300 cursor-not-allowed"
+                                : ""
+                            }
+                            ${
+                              isSelected
+                                ? "bg-yellow-300"
+                                : !seat.isReserved
+                                ? "bg-green-200 hover:bg-green-300"
+                                : ""
+                            }
+                          `}
+                          disabled={seat.isReserved}
+                        >
+                          {seat.row}
+                          {seat.number}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <p className="text-sm text-gray-500 mt-4">
+                    🟢 Available • 🔴 Taken • 🟡 Selected
+                  </p>
                 </div>
-                <p className="text-sm text-gray-500 mt-4">
-                  🟢 Available • 🔴 Taken • 🟡 Selected
-                </p>
-                <p className="text-xs text-gray-400 mt-2">
-                  (Seat selection will be implemented in future sprints)
-                </p>
-              </div>
+              )}
             </div>
 
-            {/* Customer Information */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Customer Information
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <input
-                  type="text"
-                  placeholder="First Name"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <input
-                  type="text"
-                  placeholder="Last Name"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            {/* Selected seat types */}
+            {selectedSeats.length > 0 && (
+              <div className="bg-white border rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                  Ticket Types
+                </h3>
+                <div className="space-y-2">
+                  {selectedSeats.map((seatId) => {
+                    const seat = seats.find((s) => s.id === seatId);
+                    return (
+                      <div key={seatId} className="flex items-center justify-between">
+                        <span className="text-gray-700">
+                          Seat {seat?.row}
+                          {seat?.number}
+                        </span>
+                        <select
+                          value={seatTypes[seatId] || "ADULT"}
+                          onChange={(e) =>
+                            setSeatTypes((prev) => ({ ...prev, [seatId]: e.target.value }))
+                          }
+                          className="border rounded px-2 py-1 text-sm"
+                        >
+                          <option value="ADULT">Adult</option>
+                          <option value="STUDENT">Student</option>
+                          <option value="CHILD">Child</option>
+                          <option value="SENIOR">Senior</option>
+                        </select>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <input
-                type="email"
-                placeholder="Email Address"
-                className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            )}
+
+            {/* Promo code */}
+            <div className="bg-white border rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Promotions
+              </h3>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setPromoCode(value);
+                    setPromoError(null);
+                    if (appliedPromo && appliedPromo.code !== value.trim()) {
+                      setAppliedPromo(null);
+                    }
+                  }}
+                  className="flex-1 border rounded px-3 py-2"
+                  placeholder="Enter promo code"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyPromo}
+                  disabled={isApplyingPromo || !promoCode.trim()}
+                  className={`px-4 py-2 rounded text-white ${
+                    isApplyingPromo || !promoCode.trim()
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {isApplyingPromo ? "Checking..." : appliedPromo ? "Re-apply" : "Apply"}
+                </button>
+              </div>
+              {appliedPromo && (
+                <p className="text-green-600 text-sm mt-2">
+                  Promo <strong>{appliedPromo.code}</strong> applied for {appliedPromo.discountPercent}% off.
+                </p>
+              )}
+              {promoError && <p className="text-red-600 text-sm mt-2">{promoError}</p>}
+              <p className="text-xs text-gray-500 mt-2">
+                Promo codes must be active and within their start/end dates.
+              </p>
+            </div>
+
+            {/* Order summary */}
+            <div className="bg-white border rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Order Summary
+              </h3>
+              {!selectedShowtime ? (
+                <p className="text-gray-600 text-sm">Choose a showtime to see pricing.</p>
+              ) : (
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between text-gray-700">
+                    <span>Subtotal</span>
+                    <span>${subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-700">
+                    <span>Promo</span>
+                    <span className={discount > 0 ? "text-green-600" : "text-gray-500"}>
+                      {discount > 0 ? `- $${discount.toFixed(2)}` : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-gray-900 border-t pt-2">
+                    <span>Total</span>
+                    <span>${total.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-gray-500 mt-2">
+                Totals are calculated from the showtime base price and ticket type multipliers.
+              </p>
+            </div>
+
+            {/* Payment */}
+            <div className="bg-white border rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Payment Details
+              </h3>
+              {savedCards.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-700 mb-2">Use a saved card</p>
+                  <div className="space-y-2">
+                    {savedCards.map((card) => (
+                      <label
+                        key={card.id}
+                        className={`flex items-center justify-between border rounded px-3 py-2 ${
+                          selectedCardId === card.id ? "border-blue-500 bg-blue-50" : "border-gray-200"
+                        }`}
+                      >
+                        <div>
+                          <p className="text-gray-800 text-sm font-medium">{card.card_holder_name}</p>
+                          <p className="text-gray-600 text-sm">{card.card_number_masked}</p>
+                          <p className="text-gray-500 text-xs">
+                            Exp {card.expiry_month}/{card.expiry_year}
+                          </p>
+                        </div>
+                        <input
+                          type="radio"
+                          name="savedCard"
+                          checked={selectedCardId === card.id}
+                          onChange={() => setSelectedCardId(card.id)}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="mt-2 text-sm text-blue-600 hover:underline"
+                    onClick={() => setSelectedCardId(null)}
+                  >
+                    Use a different card
+                  </button>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">
+                    Cardholder Name
+                  </label>
+                  <input
+                    type="text"
+                    value={cardName}
+                    onChange={(e) => setCardName(e.target.value)}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="Jane Doe"
+                    disabled={selectedCardId !== null}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">
+                    Card Number
+                  </label>
+                  <input
+                    type="text"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(e.target.value)}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="4242 4242 4242 4242"
+                    disabled={selectedCardId !== null}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">
+                    Expiry (MM/YY)
+                  </label>
+                  <input
+                    type="text"
+                    value={cardExpiry}
+                    onChange={(e) => setCardExpiry(e.target.value)}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="12/29"
+                    disabled={selectedCardId !== null}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">CVC</label>
+                  <input
+                    type="text"
+                    value={cardCvc}
+                    onChange={(e) => setCardCvc(e.target.value)}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="123"
+                    disabled={selectedCardId !== null}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Payments are simulated for now; card data is not stored.
+              </p>
             </div>
 
             {/* Action Buttons */}
             <div className="flex space-x-4">
               <Link
-                to={`/movie/${movie.slug}`} // fixed: use slug
+                to={`/movie/${movie.slug}`}
                 className="flex-1 bg-gray-500 text-white text-center py-3 rounded-lg hover:bg-gray-600 transition-colors"
               >
                 Back to Movie Details
               </Link>
+
               <button
-                className="flex-1 bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
-                disabled
+                onClick={handleBooking}
+                disabled={selectedSeats.length === 0}
+                className={`flex-1 py-3 rounded-lg text-white transition-colors ${
+                  selectedSeats.length === 0
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-500 hover:bg-blue-600"
+                }`}
               >
-                Proceed to Checkout (Coming Soon)
+                Confirm Booking
               </button>
             </div>
           </div>
 
+          {/* Note */}
           <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
             <p className="text-sm text-yellow-800">
-              <strong>Note:</strong> This is a prototype booking page for
-              demonstration purposes. Seat selection, payment processing, and
-              checkout functionality will be implemented in future sprints.
+              <strong>Note:</strong> Select your seats and confirm your
+              booking. Payment will be added once your checkout flow is
+              implemented.
             </p>
           </div>
         </div>

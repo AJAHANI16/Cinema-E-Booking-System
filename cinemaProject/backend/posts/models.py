@@ -138,6 +138,24 @@ class PaymentCard(models.Model):
             PaymentCard.objects.filter(user=self.user).exclude(pk=self.pk).update(is_default=False)
 
         super().save(*args, **kwargs)
+# ---------------------------------------------------------
+# PROMOTIONS
+# ---------------------------------------------------------
+class Promotion(models.Model):
+    promo_code = models.CharField(max_length=30, unique=True)
+    description = models.TextField(blank=True)
+    discount_percent = models.DecimalField(max_digits=5, decimal_places=2)
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.promo_code} ({self.discount_percent}% off)"
+
+    def is_active(self):
+        today = timezone.now().date()
+        return self.start_date <= today <= self.end_date
 
 
 # ---------------------------------------------------------
@@ -276,3 +294,11 @@ class CreditCard(models.Model):
 
     def __str__(self):
         return f"{self.get_brand_display()}, {self.last4} (exp {self.exp_month:02d}/{self.exp_year})"
+
+class Showroom(models.Model):
+    name = models.CharField(max_length=100)
+    capacity = models.PositiveIntegerField()
+    location = models.CharField(max_length=100, blank=True, null=True)
+    
+    def __str__(self):
+        return self.name

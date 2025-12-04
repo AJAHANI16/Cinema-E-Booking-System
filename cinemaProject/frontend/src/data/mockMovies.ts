@@ -2,6 +2,16 @@
 
 import type { Movie } from '../types/Movie';
 
+const makeShowtimes = (times: string[]) =>
+  times.map((time, idx) => ({
+    id: idx + 1,
+    startsAt: time,
+    format: undefined,
+    movieRoom: undefined,
+    movieRoomName: null,
+    basePrice: undefined,
+  }));
+
 export const mockMovies: Movie[] = [
   {
     id: 287,
@@ -15,7 +25,7 @@ export const mockMovies: Movie[] = [
     director: "Christopher Nolan",
     producer: "Emma Thomas",
     poster: "https://www.themoviedb.org/t/p/w1280/ljsZTbVsrQSqZgWeep2B1QiDKuh.jpg",
-    showtimes: ["2:00 PM", "5:00 PM", "8:00 PM"],
+    showtimes: makeShowtimes(["2:00 PM", "5:00 PM", "8:00 PM"]),
     category: "currently-running",
     showDates: ["2010-07-16"],
     reviews: "An ambitious and mind-bending sci-fi thriller."
@@ -32,7 +42,7 @@ export const mockMovies: Movie[] = [
     director: "Christopher Nolan",
     producer: "Emma Thomas",
     poster: "https://www.themoviedb.org/t/p/w1280/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
-    showtimes: ["3:00 PM", "6:00 PM", "9:00 PM"],
+    showtimes: makeShowtimes(["3:00 PM", "6:00 PM", "9:00 PM"]),
     category: "currently-running",
     showDates: ["2014-11-07"],
     reviews: "A visually stunning space epic."
@@ -49,7 +59,7 @@ export const mockMovies: Movie[] = [
     director: "Christopher Nolan",
     producer: "Emma Thomas",
     poster: "https://www.themoviedb.org/t/p/w1280/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
-    showtimes: ["1:30 PM", "4:30 PM", "7:30 PM"],
+    showtimes: makeShowtimes(["1:30 PM", "4:30 PM", "7:30 PM"]),
     category: "currently-running",
     showDates: ["2008-07-18"],
     reviews: "A masterpiece of superhero cinema."
@@ -66,7 +76,7 @@ export const mockMovies: Movie[] = [
     director: "James Cameron",
     producer: "James Cameron",
     poster: "https://www.themoviedb.org/t/p/w1280/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg",
-    showtimes: ["1:00 PM", "4:00 PM", "7:00 PM"],
+    showtimes: makeShowtimes(["1:00 PM", "4:00 PM", "7:00 PM"]),
     category: "currently-running",
     showDates: ["2022-12-16"],
     reviews: "A visually breathtaking sequel."
@@ -83,7 +93,7 @@ export const mockMovies: Movie[] = [
     director: "Christopher Nolan",
     producer: "Emma Thomas",
     poster: "https://image.tmdb.org/t/p/w1280/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg",
-    showtimes: ["2:30 PM", "5:30 PM", "8:30 PM"],
+    showtimes: makeShowtimes(["2:30 PM", "5:30 PM", "8:30 PM"]),
     category: "currently-running",
     showDates: ["2023-07-21"],
     reviews: "A gripping historical drama."
@@ -100,7 +110,7 @@ export const mockMovies: Movie[] = [
     director: "Greta Gerwig",
     producer: "Margot Robbie",
     poster: "https://www.themoviedb.org/t/p/w1280/iuFNMS8U5cb6xfzi51Dbkovj7vM.jpg",
-    showtimes: ["12:00 PM", "3:00 PM", "6:00 PM"],
+    showtimes: makeShowtimes(["12:00 PM", "3:00 PM", "6:00 PM"]),
     category: "currently-running",
     showDates: ["2023-07-21"],
     reviews: "A vibrant comedy adventure."
@@ -117,7 +127,7 @@ export const mockMovies: Movie[] = [
     director: "Jon Watts",
     producer: "Kevin Feige",
     poster: "https://www.themoviedb.org/t/p/w1280/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg",
-    showtimes: ["2:15 PM", "5:15 PM", "8:15 PM"],
+    showtimes: makeShowtimes(["2:15 PM", "5:15 PM", "8:15 PM"]),
     category: "currently-running",
     showDates: ["2021-12-17"],
     reviews: "A multiverse-spanning adventure."
@@ -134,7 +144,7 @@ export const mockMovies: Movie[] = [
     director: "James Gunn",
     producer: "Kevin Feige",
     poster: "https://www.themoviedb.org/t/p/w1280/r2J02Z2OpNTctfOSN1Ydgii51I3.jpg",
-    showtimes: ["2:00 PM", "5:00 PM", "8:00 PM"],
+    showtimes: makeShowtimes(["2:00 PM", "5:00 PM", "8:00 PM"]),
     category: "coming-soon",
     showDates: ["2023-05-05"],
     reviews: "A heartfelt and action-packed Marvel adventure."
@@ -151,7 +161,7 @@ export const mockMovies: Movie[] = [
     director: "Ryan Coogler",
     producer: "Kevin Feige",
     poster: "https://www.themoviedb.org/t/p/w1280/sv1xJUazXeYqALzczSZ3O6nkH75.jpg",
-    showtimes: ["2:00 PM", "5:00 PM", "8:00 PM"],
+    showtimes: makeShowtimes(["2:00 PM", "5:00 PM", "8:00 PM"]),
     category: "coming-soon",
     showDates: ["2022-11-11"],
     reviews: "An emotional continuation of the Black Panther legacy."
@@ -168,7 +178,7 @@ export const mockMovies: Movie[] = [
     director: "Joseph Kosinski",
     producer: "Jerry Bruckheimer",
     poster: "https://www.themoviedb.org/t/p/w1280/62HCnUTziyWcpDaBO2i1DX17ljH.jpg",
-    showtimes: ["2:00 PM", "5:00 PM", "8:00 PM"],
+    showtimes: makeShowtimes(["2:00 PM", "5:00 PM", "8:00 PM"]),
     category: "coming-soon",
     showDates: ["2022-05-27"],
     reviews: "An exhilarating and heartfelt legacy sequel."
@@ -185,7 +195,7 @@ export const mockMovies: Movie[] = [
     director: "Denis Villeneuve",
     producer: "Mary Parent",
     poster: "https://www.themoviedb.org/t/p/w1280/6izwz7rsy95ARzTR3poZ8H6c5pp.jpg",
-    showtimes: ["1:15 PM", "4:15 PM", "7:15 PM"],
+    showtimes: makeShowtimes(["1:15 PM", "4:15 PM", "7:15 PM"]),
     category: "coming-soon",
     showDates: ["2024-03-01"],
     reviews: "A worthy successor expanding the Dune universe."
@@ -202,7 +212,7 @@ export const mockMovies: Movie[] = [
     director: "Shawn Levy",
     producer: "Kevin Feige",
     poster: "https://image.tmdb.org/t/p/w1280/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg",
-    showtimes: ["2:00 PM", "5:00 PM", "8:00 PM"],
+    showtimes: makeShowtimes(["2:00 PM", "5:00 PM", "8:00 PM"]),
     category: "coming-soon",
     showDates: ["2024-07-26"],
     reviews: "A chaotic, hilarious team-up."
@@ -219,7 +229,7 @@ export const mockMovies: Movie[] = [
     director: "Todd Phillips",
     producer: "Todd Phillips",
     poster: "https://image.tmdb.org/t/p/w1280/if8QiqCI7WAGImKcJCfzp6VTyKA.jpg",
-    showtimes: ["2:00 PM", "5:00 PM", "8:00 PM"],
+    showtimes: makeShowtimes(["2:00 PM", "5:00 PM", "8:00 PM"]),
     category: "coming-soon",
     showDates: ["2024-10-04"],
     reviews: "A haunting musical reinvention of Joker."
@@ -236,7 +246,7 @@ export const mockMovies: Movie[] = [
     director: "Kelsey Mann",
     producer: "Mark Nielsen",
     poster: "https://www.themoviedb.org/t/p/w1280/8riWcADI1ekEiBguVB9vkilhiQm.jpg",
-    showtimes: ["2:00 PM", "5:00 PM", "8:00 PM"],
+    showtimes: makeShowtimes(["2:00 PM", "5:00 PM", "8:00 PM"]),
     category: "coming-soon",
     showDates: ["2024-06-10"],
     reviews: "A heartfelt return to Pixar’s emotional world."

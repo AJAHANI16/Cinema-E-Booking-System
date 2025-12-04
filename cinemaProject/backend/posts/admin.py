@@ -4,7 +4,7 @@ from .models import Movie, UserProfile, PaymentCard
 
 @admin.register(Movie)
 class MovieAdmin(admin.ModelAdmin):
-    list_display = ['title', 'rating', 'category', 'release_date', 'created_at']
+    list_display = ['title', 'rating', 'category', 'release_date','created_at']
     list_filter = ['category', 'rating', 'genre']
     search_fields = ['title', 'description']
     prepopulated_fields = {'slug': ('title',)}

@@ -46,13 +46,16 @@ const HomePage = ({ movies }: HomePageProps) => {
           <div className="mb-3">
             <p className="text-sm font-medium text-gray-700 mb-1">Showtimes:</p>
             <div className="flex flex-wrap gap-2">
-              {movie.showtimes.map((time, index) => (
+              {movie.showtimes.map((showtime) => (
                 <Link
-                  key={index}
-                  to={`/booking/${movie.slug}?showtime=${encodeURIComponent(time)}`}
+                  key={showtime.id}
+                  to={`/booking/${movie.slug}?showtime=${showtime.id}`}
                   className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs px-2.5 py-1 rounded-md shadow hover:opacity-90 transition-all"
                 >
-                  {time}
+                  {new Date(showtime.startsAt).toLocaleString(undefined, {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })}
                 </Link>
               ))}
             </div>

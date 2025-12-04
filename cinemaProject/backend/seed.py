@@ -7,10 +7,14 @@ from django.utils.text import slugify
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 django.setup()
 
-from posts.models import Movie
+from posts.models import Movie, MovieRoom, Showroom, Showtime
 
 
 def run():
+    deleted_showtimes, _ = Showtime.objects.all().delete()
+    if deleted_showtimes:
+        print(f"🗑️ Cleared {deleted_showtimes} old showtime(s)")
+
     Movie.objects.all().delete()
     print("🗑️ Cleared old movies")
 
@@ -250,6 +254,25 @@ def run():
 
         movie = Movie.objects.create(**m, slug=slug)
         print(f"✅ Added {movie.title} ({movie.slug})")
+
+    showrooms = [
+        {"name": "IMAX Auditorium", "capacity": 220, "location": "North Wing"},
+        {"name": "Dolby Cinema", "capacity": 180, "location": "East Wing"},
+        {"name": "Classic Theater", "capacity": 150, "location": "Main Level"},
+    ]
+
+    for room in showrooms:
+        obj, created = Showroom.objects.update_or_create(
+            name=room["name"], defaults=room
+        )
+        status = "✅" if created else "🔁"
+        print(f"{status} Showroom ready: {obj.name} ({obj.capacity} seats)")
+
+        movie_room, mr_created = MovieRoom.objects.update_or_create(
+            name=room["name"], defaults={"capacity": room["capacity"]}
+        )
+        mr_status = "✅" if mr_created else "🔁"
+        print(f"{mr_status} Movie room ready: {movie_room.name} ({movie_room.capacity} seats)")
 
 
 if __name__ == "__main__":
