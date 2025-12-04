@@ -21,8 +21,8 @@ from .models import (
 # ============================
 class MovieSerializer(serializers.ModelSerializer):
     """Serializer for Movie model."""
-    poster = serializers.URLField(source="movie_poster_URL", read_only=True)
-    trailerId = serializers.CharField(source="trailer_id", read_only=True)
+    poster = serializers.URLField(source="movie_poster_URL")
+    trailerId = serializers.CharField(source="trailer_id")
     releaseDate = serializers.DateField(source="release_date", read_only=True)
     showtimes = serializers.SerializerMethodField()
 

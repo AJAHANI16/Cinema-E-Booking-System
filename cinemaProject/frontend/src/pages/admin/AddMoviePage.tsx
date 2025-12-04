@@ -31,8 +31,8 @@ const AddMoviePage: React.FC = () => {
         description,
         duration: durationValue,
         release_date: releaseDate || null,
-        movie_poster_URL: poster,
-        trailer_id: trailerId,
+        poster: poster,
+        trailerId: trailerId,
         category,
       };
       await http.post("/admin/movies/", payload);
