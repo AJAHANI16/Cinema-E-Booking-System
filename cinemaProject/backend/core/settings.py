@@ -173,18 +173,20 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Email Configuration
 # For development, use console backend (prints emails to console)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # For production, use SMTP (example with Gmail)
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.gmail.com'
-# EMAIL_PORT = 587
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = 'your-email@gmail.com'
-# EMAIL_HOST_PASSWORD = 'your-app-password'
-# DEFAULT_FROM_EMAIL = 'Cinema E-Booking <your-email@gmail.com>'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
 
-DEFAULT_FROM_EMAIL = 'Cinema E-Booking System <noreply@cinema-booking.com>'
+EMAIL_HOST_USER = 'cinema.ebooking.project@gmail.com'
+EMAIL_HOST_PASSWORD = 'fnjl wuqc rvwz ckvq'
+DEFAULT_FROM_EMAIL = 'Cinema E-Booking <cinema.ebooking.project@gmail.com>'
+
+DEFAULT_FROM_EMAIL = 'Cinema E-Booking System <cinema.ebooking.project@gmail.com>'
 
 # Frontend URL for email links
 FRONTEND_URL = 'http://localhost:5173'
