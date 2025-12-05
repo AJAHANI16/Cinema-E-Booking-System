@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from .email_utils import (
+    send_booking_confirmation_email,
     send_password_reset_email,
     send_profile_change_notification,
     send_promotion_email_to_subscribers,
@@ -371,6 +372,15 @@ class MovieAdminViewSet(viewsets.ModelViewSet):
     serializer_class = MovieSerializer
     permission_classes = [IsAdminUser]
 
+    def destroy(self, request, *args, **kwargs):
+        movie = self.get_object()
+        with transaction.atomic():
+            # Remove tickets tied to this movie's showtimes first to avoid FK protection errors.
+            Ticket.objects.filter(showtime__movie=movie).delete()
+            Showtime.objects.filter(movie=movie).delete()
+            movie.delete()
+        return Response({"status": "Movie deleted with related showtimes and tickets removed."}, status=200)
+
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
         movie = self.get_object()
@@ -478,6 +488,37 @@ class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        """
+        Allow a user to cancel their booking and release seats for others.
+        """
+        booking = self.get_object()
+        if booking.customer.user != request.user:
+            return Response(
+                {"error": "You do not have permission to cancel this booking."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if booking.status == Booking.Status.CANCELLED:
+            return Response({"message": "Booking already cancelled."}, status=status.HTTP_200_OK)
+
+        # Prevent cancelling shows that have already started
+        first_ticket = booking.tickets.select_related("showtime").first()
+        if first_ticket and first_ticket.showtime.starts_at <= timezone.now():
+            return Response(
+                {"error": "You can only cancel bookings for future showtimes."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            # Delete tickets to free up seats
+            Ticket.objects.filter(booking=booking).delete()
+            booking.status = Booking.Status.CANCELLED
+            booking.save(update_fields=["status"])
+
+        return Response({"message": "Booking cancelled successfully."}, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         """
@@ -609,6 +650,12 @@ class BookingViewSet(viewsets.ModelViewSet):
         if promo:
             pricing["promo_code"] = promo.promo_code
             pricing["discount_percent"] = str(promo.discount_percent)
+
+        # Fire-and-forget booking confirmation email; do not block booking if it fails.
+        try:
+            send_booking_confirmation_email(user, booking, created_tickets)
+        except Exception as e:
+            print(f"Failed to send booking confirmation for booking {booking.id}: {e}")
 
         return Response(
             {

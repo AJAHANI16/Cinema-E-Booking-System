@@ -162,3 +162,33 @@ export async function validatePromoCode(code: string) {
 
   return res.json();
 }
+
+export async function cancelBooking(bookingId: number) {
+  const csrf = getCookie("csrftoken");
+  const res = await fetch(`${API_URL}/bookings/${bookingId}/cancel/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(csrf ? { "X-CSRFToken": csrf } : {}),
+    },
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      const error = await res.json();
+      message =
+        error.error ||
+        error.detail ||
+        error.message ||
+        JSON.stringify(error);
+    } catch {
+      const text = await res.text().catch(() => "");
+      if (text) message = text;
+    }
+    throw new Error(message || "Cancellation failed");
+  }
+
+  return res.json();
+}

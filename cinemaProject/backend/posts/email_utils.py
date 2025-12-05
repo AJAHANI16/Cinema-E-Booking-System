@@ -2,6 +2,7 @@
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils.html import strip_tags
+from django.utils import timezone
 
 
 def send_verification_email(user, token):
@@ -84,6 +85,55 @@ def send_password_reset_email(user, token):
         html_message=html_message,
         fail_silently=False,
     )
+
+
+def send_booking_confirmation_email(user, booking, tickets):
+    """Send a simple booking confirmation email with ticket details."""
+    if not user.email:
+        return False
+
+    subject = f"Booking #{booking.id} confirmed – Cinema E-Booking"
+
+    showtime = tickets[0].showtime if tickets else None
+    showtime_str = (
+        showtime.starts_at.astimezone(timezone.get_current_timezone()).strftime("%b %d, %Y at %I:%M %p")
+        if getattr(showtime, "starts_at", None)
+        else "TBD"
+    )
+    movie_title = getattr(showtime, "movie", None).title if getattr(showtime, "movie", None) else "Your movie"
+    seat_list = ", ".join(f"{t.seat.row}{t.seat.number}" for t in tickets) if tickets else "N/A"
+
+    html_message = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #4F46E5;">Your booking is confirmed!</h2>
+                <p>Hi {user.first_name or user.username},</p>
+                <p>Thanks for booking with Cinema E-Booking. Here are your details:</p>
+                <div style="margin: 20px 0; padding: 15px; background-color: #F3F4F6; border-radius: 8px;">
+                    <p style="margin: 0;"><strong>Movie:</strong> {movie_title}</p>
+                    <p style="margin: 6px 0 0 0;"><strong>Showtime:</strong> {showtime_str}</p>
+                    <p style="margin: 6px 0 0 0;"><strong>Seats:</strong> {seat_list}</p>
+                    <p style="margin: 6px 0 0 0;"><strong>Total:</strong> ${booking.total_amount}</p>
+                    {"<p style='margin:6px 0 0 0;'><strong>Promo code:</strong> " + booking.promo_code + "</p>" if booking.promo_code else ""}
+                </div>
+                <p>Your tickets are available in the My Tickets section of the app.</p>
+                <p style="margin-top: 24px;">Enjoy the show!<br/>Cinema E-Booking Team</p>
+            </div>
+        </body>
+    </html>
+    """
+    plain_message = strip_tags(html_message)
+
+    send_mail(
+        subject,
+        plain_message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        html_message=html_message,
+        fail_silently=False,
+    )
+    return True
 
 
 def send_profile_change_notification(user):
@@ -200,14 +250,18 @@ def send_promotion_email_to_subscribers(promotion):
         """
         plain_message = strip_tags(html_message)
 
-        send_mail(
-            subject,
-            plain_message,
-            settings.DEFAULT_FROM_EMAIL,
-            [user.email],
-            html_message=html_message,
-            fail_silently=False,
-        )
-        count += 1
+        try:
+            send_mail(
+                subject,
+                plain_message,
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            count += 1
+        except Exception as e:
+            # Log and continue so one failure doesn't block others
+            print(f"Failed to send promo email to {user.email}: {e}")
 
     return count
