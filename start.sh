@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -e  # exit immediately on error
 
 MARKER_FILE=".setup_done"
@@ -31,6 +32,8 @@ fi
 if [ ! -f "cinemaProject/$MARKER_FILE" ]; then
   echo "Running first-time setup..."
 
+  open "/Applications/Python 3.14/Install Certificates.command"
+  
   # --- Backend setup ---
   cd cinemaProject/backend
   VENV_DIR="$HOME/.virtualenvs/cinema_backend"
