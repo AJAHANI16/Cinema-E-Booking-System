@@ -4,6 +4,7 @@ from django.conf import settings
 from django.utils.html import strip_tags
 
 
+
 def send_verification_email(user, token):
     """Send email verification link to user"""
     verification_url = f"{settings.FRONTEND_URL}/verify-email/{token}"
@@ -211,3 +212,116 @@ def send_promotion_email_to_subscribers(promotion):
         count += 1
 
     return count
+
+
+def send_booking_confirmation_email(user, booking):
+    """Send an email to user when they successfully create a booking."""
+    subject = "Your Cinema E-Booking Ticket Confirmation"
+
+    # Grab the first ticket (assume all tickets are for same showtime)
+    first_ticket = booking.tickets.select_related("showtime__movie").first()
+    if not first_ticket:
+        print("No tickets found for booking")
+        return
+
+    showtime = first_ticket.showtime
+    movie_title = showtime.movie.title
+    showtime_str = showtime.starts_at.strftime("%b %d, %Y at %I:%M %p")
+    seats_list = ", ".join([f"{t.seat.row}{t.seat.number}" for t in booking.tickets.all()])
+
+    html_message = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #4F46E5;">Booking Confirmed!</h2>
+                <p>Hi {user.first_name or user.username},</p>
+                <p>Your movie ticket has been successfully booked.</p>
+
+                <div style="margin: 20px 0; padding: 15px; background-color: #F3F4F6; border-radius: 8px;">
+                    <p style="margin: 0; font-size: 16px;"><strong>Movie:</strong> {movie_title}</p>
+                    <p style="margin: 8px 0 0;"><strong>Showtime:</strong> {showtime_str}</p>
+                    <p style="margin: 8px 0 0;"><strong>Seats:</strong> {seats_list}</p>
+                    <p style="margin: 8px 0 0;"><strong>Booking ID:</strong> {booking.id}</p>
+                </div>
+
+                <p>Your tickets are now confirmed. Show this email at the theatre entrance.</p>
+
+                <p style="margin-top: 30px; font-size: 12px; color: #999;">
+                    Thank you for choosing Cinema E-Booking.
+                </p>
+            </div>
+        </body>
+    </html>
+    """
+
+    plain_message = strip_tags(html_message)
+
+    send_mail(
+        subject,
+        plain_message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        html_message=html_message,
+        fail_silently=False,
+    )
+def send_booking_cancellation_email(booking, tickets=None):
+    """
+    Sends a booking cancellation email to the customer in the same format
+    as the booking confirmation email.
+    """
+    user = booking.customer.user
+
+    # Use provided tickets or fetch from DB if not provided
+    if tickets is None:
+        tickets = list(booking.tickets.select_related("showtime__movie", "seat"))
+
+    if not tickets:
+        showtime_info = "No tickets were associated with this booking."
+        seats_list = ""
+    else:
+        showtime_info = ", ".join(
+            f"{ticket.showtime.movie.title} @ {ticket.showtime.starts_at.strftime('%b %d, %Y at %I:%M %p')}"
+            for ticket in tickets
+        )
+        seats_list = ", ".join(f"{ticket.seat.row}{ticket.seat.number}" for ticket in tickets)
+
+    subject = f"Booking #{booking.pk} Cancelled"
+
+    html_message = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #E11D48;">Booking Cancelled</h2>
+                <p>Hi {user.first_name or user.username},</p>
+                <p>Your Cinema E-Booking booking has been successfully cancelled.</p>
+
+                <div style="margin: 20px 0; padding: 15px; background-color: #F3F4F6; border-radius: 8px;">
+                    <p style="margin: 0; font-size: 16px;"><strong>Booking ID:</strong> {booking.pk}</p>
+                    <p style="margin: 8px 0 0;"><strong>Showtimes:</strong> {showtime_info}</p>
+                    <p style="margin: 8px 0 0;"><strong>Seats:</strong> {seats_list}</p>
+                    <p style="margin: 8px 0 0;"><strong>Total Amount:</strong> ${booking.total_amount}</p>
+                </div>
+
+                <p>If you have any questions or believe this cancellation was a mistake, please contact our support team.</p>
+
+                <p style="margin-top: 30px; font-size: 12px; color: #999;">
+                    This is an automated notification from Cinema E-Booking.
+                </p>
+            </div>
+        </body>
+    </html>
+    """
+
+    plain_message = strip_tags(html_message)
+
+    try:
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+    except Exception as e:
+        print(f"Failed to send booking cancellation email: {e}")

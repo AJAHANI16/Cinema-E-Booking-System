@@ -15,6 +15,8 @@ from .email_utils import (
     send_promotion_email_to_subscribers,
     send_verification_email,
     send_welcome_email,
+    send_booking_confirmation_email,
+    send_booking_cancellation_email
 )
 from .models import (
     Booking,
@@ -496,11 +498,22 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({"error": "You can only cancel future showtimes."}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
-            Ticket.objects.filter(booking=booking).delete()
+            # Fetch tickets BEFORE deleting them
+            tickets = list(booking.tickets.select_related("showtime__movie", "seat"))
+
+            # Mark booking as cancelled
             booking.status = Booking.Status.CANCELLED
             booking.save(update_fields=["status"])
 
-        return Response({"message": "Booking cancelled and seats released."}, status=status.HTTP_200_OK)
+            # Delete tickets
+            Ticket.objects.filter(booking=booking).delete()
+
+            # Send cancellation email (non-blocking)
+            try:
+                send_booking_cancellation_email(booking, tickets=tickets)
+            except Exception as e:
+                print(f"Failed to send booking cancellation email: {e}")
+        return Response({"message": "Booking cancelled successfully."}, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         """
@@ -622,6 +635,10 @@ class BookingViewSet(viewsets.ModelViewSet):
             booking.total_amount = total_price
             booking.status = Booking.Status.CONFIRMED
             booking.save()
+            try:
+                send_booking_confirmation_email(request.user, booking)
+            except Exception as e:
+                print("Failed to send booking confirmation:", e)
 
         pricing = {
             "total_before_discount": str(total_before_discount),

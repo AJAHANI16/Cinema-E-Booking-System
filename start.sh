@@ -32,7 +32,7 @@ fi
 if [ ! -f "cinemaProject/$MARKER_FILE" ]; then
   echo "Running first-time setup..."
 
-  open "/Applications/Python 3.14/Install Certificates.command"
+  open "/Applications/Python 3.13/Install Certificates.command"
   
   # --- Backend setup ---
   cd cinemaProject/backend
