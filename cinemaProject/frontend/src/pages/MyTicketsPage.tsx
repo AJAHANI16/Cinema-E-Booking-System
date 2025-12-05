@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchMyBookings } from "../data/api";
+import { cancelBooking, fetchMyBookings } from "../data/api";
 import { Link } from "react-router-dom";
 
 interface TicketShowtime {
@@ -39,6 +39,8 @@ const MyTicketsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [flash, setFlash] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -71,6 +73,24 @@ const MyTicketsPage = () => {
   const handleRetry = () => {
     setLoading(true);
     setRetryCount((prev) => prev + 1);
+  };
+
+  const handleCancel = async (bookingId: number) => {
+    setFlash(null);
+    setCancellingId(bookingId);
+    try {
+      await cancelBooking(bookingId);
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === bookingId ? { ...b, status: "CANCELLED", tickets: [] } : b
+        )
+      );
+      setFlash({ type: "success", text: "Booking cancelled and seats released." });
+    } catch (err: any) {
+      setFlash({ type: "error", text: err?.message || "Could not cancel booking." });
+    } finally {
+      setCancellingId(null);
+    }
   };
 
   // Separate bookings into upcoming and past
@@ -150,6 +170,7 @@ const MyTicketsPage = () => {
     const firstShowtime = booking.tickets[0]?.showtime;
     const showtimeDate = firstShowtime?.starts_at ? new Date(firstShowtime.starts_at) : null;
     const isExpired = showtimeDate && showtimeDate < now;
+    const canCancel = isUpcoming && !isExpired && booking.status !== "CANCELLED";
 
     return (
       <div
@@ -180,16 +201,34 @@ const MyTicketsPage = () => {
                 })}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <span className={`text-sm font-medium px-3 py-1 rounded-full border ${getStatusColor(booking.status)}`}>
-                {booking.status}
-              </span>
-              <div className="text-right">
-                <p className="text-xs text-gray-500">Total</p>
-                <p className="text-lg font-bold text-gray-800">
-                  ${Number(booking.total_amount).toFixed(2)}
-                </p>
+            <div className="flex flex-col items-start sm:items-end gap-2">
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-medium px-3 py-1 rounded-full border ${getStatusColor(booking.status)}`}>
+                  {booking.status}
+                </span>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Total</p>
+                  <p className="text-lg font-bold text-gray-800">
+                    ${Number(booking.total_amount).toFixed(2)}
+                  </p>
+                </div>
               </div>
+              {canCancel && (
+                <button
+                  onClick={() => handleCancel(booking.id)}
+                  disabled={cancellingId === booking.id}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold border transition ${
+                    cancellingId === booking.id
+                      ? "bg-gray-200 text-gray-500 border-gray-200 cursor-not-allowed"
+                      : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  {cancellingId === booking.id ? "Cancelling..." : "Cancel Booking"}
+                </button>
+              )}
             </div>
           </div>
           {booking.promo_code && (
@@ -206,6 +245,11 @@ const MyTicketsPage = () => {
         {/* Tickets */}
         <div className="p-5">
           <div className="space-y-4">
+            {booking.tickets.length === 0 && booking.status === "CANCELLED" && (
+              <div className="p-4 bg-gray-50 border border-dashed border-gray-200 rounded-lg text-sm text-gray-600">
+                Tickets were released after cancellation.
+              </div>
+            )}
             {booking.tickets.map((ticket, index) => (
               <div
                 key={ticket.id}
@@ -296,6 +340,17 @@ const MyTicketsPage = () => {
             View and manage your movie bookings
           </p>
         </div>
+        {flash && (
+          <div
+            className={`mb-6 rounded-lg border px-4 py-3 text-sm ${
+              flash.type === "success"
+                ? "bg-green-50 border-green-200 text-green-800"
+                : "bg-red-50 border-red-200 text-red-800"
+            }`}
+          >
+            {flash.text}
+          </div>
+        )}
 
         {bookings.length === 0 ? (
           <div className="bg-white rounded-lg shadow-lg p-12 text-center">

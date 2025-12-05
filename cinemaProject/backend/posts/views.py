@@ -479,6 +479,29 @@ class BookingViewSet(viewsets.ModelViewSet):
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        """
+        Allow a user to cancel their booking and release seats.
+        """
+        booking = self.get_object()
+        if booking.customer.user != request.user:
+            return Response({"error": "You cannot cancel this booking."}, status=status.HTTP_403_FORBIDDEN)
+
+        if booking.status == Booking.Status.CANCELLED:
+            return Response({"message": "Booking already cancelled."}, status=status.HTTP_200_OK)
+
+        first_ticket = booking.tickets.select_related("showtime").first()
+        if first_ticket and first_ticket.showtime.starts_at <= timezone.now():
+            return Response({"error": "You can only cancel future showtimes."}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            Ticket.objects.filter(booking=booking).delete()
+            booking.status = Booking.Status.CANCELLED
+            booking.save(update_fields=["status"])
+
+        return Response({"message": "Booking cancelled and seats released."}, status=status.HTTP_200_OK)
+
     def create(self, request, *args, **kwargs):
         """
         Create booking for a user and generate corresponding tickets.
