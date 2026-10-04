@@ -1,0 +1,11 @@
+# Rename this file to '.env' if u want to use it
+
+# django superuser login info
+DJANGO_SUPERUSER_USERNAME=admin
+DJANGO_SUPERUSER_EMAIL=admin@example.com
+DJANGO_SUPERUSER_PASSWORD=password
+
+# django settings
+DJANGO_DEBUG=True
+DJANGO_SECRET_KEY=changeme
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
